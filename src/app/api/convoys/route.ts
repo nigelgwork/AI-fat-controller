@@ -19,12 +19,9 @@ export async function GET(request: NextRequest) {
 
     const convoys = getConvoys();
     return NextResponse.json({ convoys });
-  } catch (error) {
-    console.error("Failed to fetch convoys:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch convoys" },
-      { status: 500 }
-    );
+  } catch {
+    // Return empty array when Gas Town isn't running
+    return NextResponse.json({ convoys: [] });
   }
 }
 

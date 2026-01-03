@@ -1,9 +1,31 @@
 import { execSync } from "child_process";
-import { join } from "path";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 import { Agent, Convoy, Insights, Mail, Rig, TownStats } from "@/types/gastown";
 
 // Get project bin directory for gt/bd commands
-const projectRoot = process.cwd();
+// Use multiple fallbacks for reliable path resolution
+const getProjectRoot = () => {
+  // Try common locations
+  const candidates = [
+    process.cwd(),
+    join(process.cwd(), ".."),
+    "/home/michael_pappas/Documents/Personal/code/gastown-ui",
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const binPath = join(candidate, "bin", "gt");
+      require("fs").accessSync(binPath);
+      return candidate;
+    } catch {
+      continue;
+    }
+  }
+  return process.cwd();
+};
+
+const projectRoot = getProjectRoot();
 const binDir = join(projectRoot, "bin");
 const gastownPath = process.env.GASTOWN_PATH || join(process.env.HOME || "", "gt");
 
@@ -11,7 +33,7 @@ function execCommand(command: string): string {
   try {
     return execSync(command, {
       encoding: "utf-8",
-      timeout: 30000,
+      timeout: 5000, // 5 second timeout
       env: {
         ...process.env,
         PATH: `${binDir}:${process.env.PATH}`,
@@ -19,8 +41,13 @@ function execCommand(command: string): string {
       },
       cwd: gastownPath,
     }).trim();
-  } catch (error) {
-    console.error(`Command failed: ${command}`, error);
+  } catch (error: unknown) {
+    const err = error as { message?: string; stderr?: string };
+    const errorMsg = err.message || err.stderr || "Unknown error";
+    // Only log if not a simple "command failed" error
+    if (!errorMsg.includes("SIGTERM") && !errorMsg.includes("ETIMEDOUT")) {
+      console.error(`Command failed: ${command} - ${errorMsg.slice(0, 100)}`);
+    }
     throw error;
   }
 }
@@ -36,7 +63,9 @@ function parseJsonOutput<T>(command: string): T | null {
 
 // Town Management
 export function getTownStatus(): TownStats | null {
-  return parseJsonOutput<TownStats>("gt status --json");
+  // gt doesn't have a direct status --json command yet
+  // Return null to indicate not available
+  return null;
 }
 
 export function getRigs(): Rig[] {
@@ -46,8 +75,18 @@ export function getRigs(): Rig[] {
 
 // Agent Management
 export function getAgents(): Agent[] {
-  const result = parseJsonOutput<{ agents: Agent[] }>("gt status --json");
-  return result?.agents ?? [];
+  // gt agents list outputs text, not JSON - parse or return empty for now
+  try {
+    const output = execCommand("gt agents list");
+    // If no agents running, return empty
+    if (output.includes("No agent sessions running")) {
+      return [];
+    }
+    // TODO: Parse text output to Agent[] if needed
+    return [];
+  } catch {
+    return [];
+  }
 }
 
 export function getAgentById(id: string): Agent | null {

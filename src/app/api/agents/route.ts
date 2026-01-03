@@ -19,12 +19,9 @@ export async function GET(request: NextRequest) {
 
     const agents = getAgents();
     return NextResponse.json({ agents });
-  } catch (error) {
-    console.error("Failed to fetch agents:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch agents" },
-      { status: 500 }
-    );
+  } catch {
+    // Return empty array when Gas Town isn't running
+    return NextResponse.json({ agents: [] });
   }
 }
 
