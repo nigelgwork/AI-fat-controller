@@ -12,8 +12,7 @@ import {
   RefreshCw,
   Mail,
   FileText,
-  Pause,
-  Play,
+  Settings,
   Plus,
 } from "lucide-react";
 import { ProgressBar, StatusBadge } from "@/components/ui";
@@ -244,21 +243,13 @@ function AgentCard({
           >
             <RefreshCw className={cn("h-4 w-4", isHandingOff && "animate-spin")} />
           </button>
-          {agent.status === "working" ? (
-            <button
-              className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-              title="Pause"
-            >
-              <Pause className="h-4 w-4" />
-            </button>
-          ) : (
-            <button
-              className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-              title="Resume"
-            >
-              <Play className="h-4 w-4" />
-            </button>
-          )}
+          <button
+            disabled
+            className="rounded-lg p-2 text-zinc-400 disabled:cursor-not-allowed disabled:opacity-50"
+            title="Settings (coming soon)"
+          >
+            <Settings className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
