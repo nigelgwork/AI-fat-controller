@@ -1,11 +1,23 @@
 import { execSync } from "child_process";
+import { join } from "path";
 import { Agent, Convoy, Insights, Mail, Rig, TownStats } from "@/types/gastown";
+
+// Get project bin directory for gt/bd commands
+const projectRoot = process.cwd();
+const binDir = join(projectRoot, "bin");
+const gastownPath = process.env.GASTOWN_PATH || join(process.env.HOME || "", "gt");
 
 function execCommand(command: string): string {
   try {
     return execSync(command, {
       encoding: "utf-8",
       timeout: 30000,
+      env: {
+        ...process.env,
+        PATH: `${binDir}:${process.env.PATH}`,
+        GASTOWN_PATH: gastownPath,
+      },
+      cwd: gastownPath,
     }).trim();
   } catch (error) {
     console.error(`Command failed: ${command}`, error);

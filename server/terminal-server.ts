@@ -1,6 +1,5 @@
 import { WebSocketServer, WebSocket } from "ws";
 import * as pty from "node-pty";
-import { spawn } from "child_process";
 import * as os from "os";
 
 const PORT = parseInt(process.env.TERMINAL_PORT || "3001", 10);
