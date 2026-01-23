@@ -57,6 +57,19 @@ export interface UpdateStatusType {
   error: string | null;
 }
 
+export interface DebugInfo {
+  isPackaged: boolean;
+  resourcesPath: string;
+  gtPath: string;
+  gtExists: boolean;
+  bdPath: string;
+  bdExists: boolean;
+  claudePath: string;
+  gastownPath: string;
+  gastownExists: boolean;
+  executionMode: 'windows' | 'wsl';
+}
+
 export interface AppSettings {
   executionMode: 'windows' | 'wsl';
   defaultMode: 'windows' | 'wsl' | 'auto';
@@ -125,6 +138,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getUpdateStatus: (): Promise<UpdateStatusType> => ipcRenderer.invoke('app:updateStatus'),
   downloadUpdate: (): Promise<void> => ipcRenderer.invoke('app:downloadUpdate'),
 
+  // Debug info
+  getDebugInfo: (): Promise<DebugInfo> => ipcRenderer.invoke('app:debugInfo'),
+
   // Event listeners
   onUpdateChecking: (callback: () => void) => {
     const handler = () => callback();
@@ -187,6 +203,7 @@ declare global {
       minimize: () => Promise<void>;
       getUpdateStatus: () => Promise<UpdateStatusType>;
       downloadUpdate: () => Promise<void>;
+      getDebugInfo: () => Promise<DebugInfo>;
       onUpdateChecking: (callback: () => void) => () => void;
       onUpdateAvailable: (callback: (data: { version: string; releaseNotes?: string }) => void) => () => void;
       onUpdateNotAvailable: (callback: () => void) => () => void;

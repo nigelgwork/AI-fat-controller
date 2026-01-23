@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Monitor, Terminal, Folder, RefreshCw, Download, Info, Cpu, Save } from 'lucide-react';
+import { Settings as SettingsIcon, Monitor, Terminal, Folder, RefreshCw, Download, Info, Cpu, Save, Bug, CheckCircle, XCircle } from 'lucide-react';
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -189,6 +189,11 @@ export default function Settings() {
         <div className="md:col-span-2">
           <AboutCard />
         </div>
+
+        {/* Debug Info Card - Full Width */}
+        <div className="md:col-span-2">
+          <DebugCard />
+        </div>
       </div>
     </div>
   );
@@ -328,6 +333,99 @@ function AboutCard() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+interface DebugInfo {
+  isPackaged: boolean;
+  resourcesPath: string;
+  gtPath: string;
+  gtExists: boolean;
+  bdPath: string;
+  bdExists: boolean;
+  claudePath: string;
+  gastownPath: string;
+  gastownExists: boolean;
+  executionMode: 'windows' | 'wsl';
+}
+
+function DebugCard() {
+  const { data: debugInfo, isLoading, refetch } = useQuery({
+    queryKey: ['debug-info'],
+    queryFn: () => window.electronAPI?.getDebugInfo() as Promise<DebugInfo>,
+  });
+
+  const StatusIcon = ({ exists }: { exists: boolean }) => (
+    exists
+      ? <CheckCircle size={14} className="text-green-400" />
+      : <XCircle size={14} className="text-red-400" />
+  );
+
+  return (
+    <div className="bg-slate-800 rounded-lg border border-slate-700 p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="p-2 bg-yellow-500/20 rounded-lg">
+            <Bug size={18} className="text-yellow-400" />
+          </div>
+          <h3 className="font-semibold text-white">Debug Info</h3>
+        </div>
+        <button
+          onClick={() => refetch()}
+          className="text-xs text-slate-400 hover:text-white px-2 py-1 hover:bg-slate-700 rounded"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="text-slate-400">Loading...</div>
+      ) : debugInfo ? (
+        <div className="space-y-3 text-sm">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-3 bg-slate-900 rounded-lg">
+              <p className="text-xs text-slate-400 uppercase mb-1">Packaged</p>
+              <p className="text-white">{debugInfo.isPackaged ? 'Yes (Production)' : 'No (Development)'}</p>
+            </div>
+            <div className="p-3 bg-slate-900 rounded-lg">
+              <p className="text-xs text-slate-400 uppercase mb-1">Execution Mode</p>
+              <p className="text-white capitalize">{debugInfo.executionMode}</p>
+            </div>
+          </div>
+
+          <div className="p-3 bg-slate-900 rounded-lg">
+            <p className="text-xs text-slate-400 uppercase mb-1">Claude Code CLI</p>
+            <p className="text-white font-mono text-xs break-all">{debugInfo.claudePath}</p>
+          </div>
+
+          <div className="p-3 bg-slate-900 rounded-lg">
+            <div className="flex items-center gap-2 mb-1">
+              <StatusIcon exists={debugInfo.gtExists} />
+              <p className="text-xs text-slate-400 uppercase">Gas Town CLI (gt)</p>
+            </div>
+            <p className="text-white font-mono text-xs break-all">{debugInfo.gtPath}</p>
+          </div>
+
+          <div className="p-3 bg-slate-900 rounded-lg">
+            <div className="flex items-center gap-2 mb-1">
+              <StatusIcon exists={debugInfo.bdExists} />
+              <p className="text-xs text-slate-400 uppercase">Beads CLI (bd)</p>
+            </div>
+            <p className="text-white font-mono text-xs break-all">{debugInfo.bdPath}</p>
+          </div>
+
+          <div className="p-3 bg-slate-900 rounded-lg">
+            <div className="flex items-center gap-2 mb-1">
+              <StatusIcon exists={debugInfo.gastownExists} />
+              <p className="text-xs text-slate-400 uppercase">Gas Town Workspace</p>
+            </div>
+            <p className="text-white font-mono text-xs break-all">{debugInfo.gastownPath}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="text-slate-400">Failed to load debug info</div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { IpcMain, app, BrowserWindow, dialog } from 'electron';
-import { getExecutor, switchExecutor, detectModes } from '../services/executor';
+import { getExecutor, switchExecutor, detectModes, getDebugInfo } from '../services/executor';
 import { checkForUpdates, downloadUpdate, installUpdate, getUpdateStatus, getCurrentVersion } from '../services/auto-updater';
 import { settings, getSetting, setSetting, getSettings } from '../services/settings';
 import { readBeadsFile, getBeadsStats, getBeadsEvents } from '../services/beads';
@@ -156,5 +156,10 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
   // Combined system status
   ipcMain.handle('system:status', async () => {
     return getSystemStatus();
+  });
+
+  // Debug info
+  ipcMain.handle('app:debugInfo', async () => {
+    return getDebugInfo();
   });
 }

@@ -339,6 +339,52 @@ export async function switchExecutor(mode: 'windows' | 'wsl'): Promise<void> {
   await currentExecutor.initialize();
 }
 
+// Debug info
+export interface DebugInfo {
+  isPackaged: boolean;
+  resourcesPath: string;
+  gtPath: string;
+  gtExists: boolean;
+  bdPath: string;
+  bdExists: boolean;
+  claudePath: string;
+  gastownPath: string;
+  gastownExists: boolean;
+  executionMode: 'windows' | 'wsl';
+}
+
+export async function getDebugInfo(): Promise<DebugInfo> {
+  const mode = settings.get('executionMode') as 'windows' | 'wsl';
+  const resourcesPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'bin')
+    : path.join(__dirname, '../../resources/bin');
+
+  const gtPath = path.join(resourcesPath, 'gt.exe');
+  const bdPath = path.join(resourcesPath, 'bd.exe');
+  const gastownPath = settings.get('gastownPath') as string || path.join(app.getPath('home'), 'gt');
+
+  let claudePath = '';
+  try {
+    const { stdout } = await execAsync('where claude.cmd 2>nul || where claude 2>nul', { timeout: 5000 });
+    claudePath = stdout.trim().split('\n')[0] || 'Not found';
+  } catch {
+    claudePath = 'Not found in PATH';
+  }
+
+  return {
+    isPackaged: app.isPackaged,
+    resourcesPath,
+    gtPath,
+    gtExists: fs.existsSync(gtPath),
+    bdPath,
+    bdExists: fs.existsSync(bdPath),
+    claudePath,
+    gastownPath,
+    gastownExists: fs.existsSync(gastownPath),
+    executionMode: mode,
+  };
+}
+
 // Detection utilities
 export async function detectModes(): Promise<ModeStatus> {
   const status: ModeStatus = {
