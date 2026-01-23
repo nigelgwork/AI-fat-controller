@@ -6,6 +6,7 @@ import {
   Circle,
   Boxes,
   Settings,
+  FolderGit,
 } from 'lucide-react';
 import ModeToggle from './ModeToggle';
 import UpdateBanner from './UpdateBanner';
@@ -13,6 +14,7 @@ import UpdateBanner from './UpdateBanner';
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/terminal', icon: Terminal, label: 'Controller' },
+  { to: '/projects', icon: FolderGit, label: 'Projects' },
   { to: '/agents', icon: Users, label: 'Agents' },
   { to: '/beads', icon: Circle, label: 'Beads' },
   { to: '/convoys', icon: Boxes, label: 'Convoys' },

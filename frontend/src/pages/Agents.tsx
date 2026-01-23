@@ -1,5 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
-import { Users, Bot, Eye, Factory, Zap, Terminal, ArrowRight, Crown } from 'lucide-react';
+import { Users, Bot, Eye, Factory, Zap, Terminal, ArrowRight, Crown, RefreshCw, Activity, FolderGit } from 'lucide-react';
+
+interface ClaudeSession {
+  pid: number;
+  workingDir: string;
+  projectName?: string;
+  command: string;
+  startTime?: string;
+}
 
 export default function Agents() {
   const { data: result, isLoading } = useQuery({
@@ -18,12 +26,79 @@ export default function Agents() {
     refetchInterval: 10000,
   });
 
+  const { data: sessions, isLoading: isLoadingSessions, refetch: refetchSessions } = useQuery({
+    queryKey: ['claude-sessions'],
+    queryFn: () => window.electronAPI?.getClaudeSessions() as Promise<ClaudeSession[]>,
+    refetchInterval: 5000,
+  });
+
+  const hasActiveSessions = sessions && sessions.length > 0;
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-white">Agents</h2>
 
+      {/* Active Claude Sessions */}
+      <div className="bg-slate-800 rounded-lg border border-slate-700">
+        <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+          <h3 className="font-semibold text-white flex items-center gap-2">
+            <Activity size={18} className="text-green-400" />
+            Active Claude Code Sessions
+            {hasActiveSessions && (
+              <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
+                {sessions.length} running
+              </span>
+            )}
+          </h3>
+          <button
+            onClick={() => refetchSessions()}
+            disabled={isLoadingSessions}
+            className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
+          >
+            <RefreshCw size={14} className={isLoadingSessions ? 'animate-spin' : ''} />
+          </button>
+        </div>
+
+        {isLoadingSessions ? (
+          <div className="p-6 text-center text-slate-400">Detecting sessions...</div>
+        ) : !hasActiveSessions ? (
+          <div className="p-6 text-center">
+            <Terminal className="w-10 h-10 text-slate-500 mx-auto mb-3" />
+            <p className="text-slate-400">No active Claude Code sessions detected</p>
+            <p className="text-sm text-slate-500 mt-1">
+              Start Claude Code in a project to see it here
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-700">
+            {sessions.map((session) => (
+              <div key={session.pid} className="p-4 hover:bg-slate-700/50 transition-colors">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                      <span className="font-medium text-white">
+                        {session.projectName || 'Claude Code Session'}
+                      </span>
+                      <span className="text-xs text-slate-500">PID: {session.pid}</span>
+                    </div>
+                    {session.workingDir && (
+                      <p className="text-sm text-slate-400 flex items-center gap-1">
+                        <FolderGit size={12} />
+                        {session.workingDir}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Gas Town Agents */}
       {isLoading ? (
-        <div className="text-slate-400">Loading agents...</div>
+        <div className="text-slate-400">Loading Gas Town agents...</div>
       ) : !result ? (
         <EmptyState />
       ) : (

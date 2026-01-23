@@ -1,8 +1,17 @@
-import { IpcMain, app, BrowserWindow } from 'electron';
+import { IpcMain, app, BrowserWindow, dialog } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { getExecutor, switchExecutor, detectModes } from '../services/executor';
 import { settings, getSetting, setSetting, getSettings } from '../services/settings';
 import { readBeadsFile, getBeadsStats, getBeadsEvents } from '../services/beads';
+import {
+  getProjects,
+  addProject,
+  removeProject,
+  refreshProjects,
+  discoverGitRepos,
+  detectClaudeSessions,
+  getSystemStatus,
+} from '../services/projects';
 
 // System prompt for Claude Code
 function getSystemPrompt(): string {
@@ -97,5 +106,47 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
 
   ipcMain.handle('app:minimize', () => {
     BrowserWindow.getFocusedWindow()?.minimize();
+  });
+
+  // Project handlers
+  ipcMain.handle('projects:list', () => {
+    return getProjects();
+  });
+
+  ipcMain.handle('projects:add', async (_, projectPath: string) => {
+    return addProject(projectPath);
+  });
+
+  ipcMain.handle('projects:remove', (_, projectId: string) => {
+    removeProject(projectId);
+  });
+
+  ipcMain.handle('projects:refresh', async () => {
+    return refreshProjects();
+  });
+
+  ipcMain.handle('projects:discover', async () => {
+    return discoverGitRepos();
+  });
+
+  ipcMain.handle('projects:browse', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory'],
+      title: 'Select Project Folder',
+    });
+    if (!result.canceled && result.filePaths.length > 0) {
+      return result.filePaths[0];
+    }
+    return null;
+  });
+
+  // Claude session detection
+  ipcMain.handle('claude:sessions', async () => {
+    return detectClaudeSessions();
+  });
+
+  // Combined system status
+  ipcMain.handle('system:status', async () => {
+    return getSystemStatus();
   });
 }

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Terminal from './pages/Terminal';
+import Projects from './pages/Projects';
 import Agents from './pages/Agents';
 import Beads from './pages/Beads';
 import Convoys from './pages/Convoys';
@@ -41,6 +42,7 @@ function App() {
       <Route path="/" element={<Layout />}>
         <Route index element={<Dashboard />} />
         <Route path="terminal" element={<Terminal />} />
+        <Route path="projects" element={<Projects />} />
         <Route path="agents" element={<Agents />} />
         <Route path="beads" element={<Beads />} />
         <Route path="convoys" element={<Convoys />} />

@@ -22,6 +22,30 @@ export interface ExecuteResult {
   duration: number;
 }
 
+export interface Project {
+  id: string;
+  name: string;
+  path: string;
+  hasBeads: boolean;
+  lastModified?: string;
+  gitRemote?: string;
+  gitBranch?: string;
+}
+
+export interface ClaudeSession {
+  pid: number;
+  workingDir: string;
+  projectName?: string;
+  command: string;
+  startTime?: string;
+}
+
+export interface SystemStatus {
+  projects: Project[];
+  sessions: ClaudeSession[];
+  discovered: Project[];
+}
+
 export interface AppSettings {
   executionMode: 'windows' | 'wsl';
   defaultMode: 'windows' | 'wsl' | 'auto';
@@ -72,6 +96,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   quit: (): Promise<void> => ipcRenderer.invoke('app:quit'),
   minimize: (): Promise<void> => ipcRenderer.invoke('app:minimize'),
 
+  // Projects
+  listProjects: (): Promise<Project[]> => ipcRenderer.invoke('projects:list'),
+  addProject: (path: string): Promise<Project> => ipcRenderer.invoke('projects:add', path),
+  removeProject: (id: string): Promise<void> => ipcRenderer.invoke('projects:remove', id),
+  refreshProjects: (): Promise<Project[]> => ipcRenderer.invoke('projects:refresh'),
+  discoverProjects: (): Promise<Project[]> => ipcRenderer.invoke('projects:discover'),
+  browseForProject: (): Promise<string | null> => ipcRenderer.invoke('projects:browse'),
+
+  // Claude sessions
+  getClaudeSessions: (): Promise<ClaudeSession[]> => ipcRenderer.invoke('claude:sessions'),
+
+  // System status
+  getSystemStatus: (): Promise<SystemStatus> => ipcRenderer.invoke('system:status'),
+
   // Event listeners
   onUpdateAvailable: (callback: () => void) => {
     ipcRenderer.on('update-available', callback);
@@ -113,6 +151,17 @@ declare global {
       onUpdateAvailable: (callback: () => void) => () => void;
       onUpdateDownloaded: (callback: () => void) => () => void;
       onModeChanged: (callback: (mode: 'windows' | 'wsl') => void) => () => void;
+      // Projects
+      listProjects: () => Promise<Project[]>;
+      addProject: (path: string) => Promise<Project>;
+      removeProject: (id: string) => Promise<void>;
+      refreshProjects: () => Promise<Project[]>;
+      discoverProjects: () => Promise<Project[]>;
+      browseForProject: () => Promise<string | null>;
+      // Claude sessions
+      getClaudeSessions: () => Promise<ClaudeSession[]>;
+      // System status
+      getSystemStatus: () => Promise<SystemStatus>;
     };
   }
 }

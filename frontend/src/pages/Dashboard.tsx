@@ -1,5 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { Circle, Users, Boxes, Activity, RefreshCw } from 'lucide-react';
+import { Circle, Users, Boxes, Activity, RefreshCw, FolderGit, Terminal } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+interface SystemStatus {
+  projects: { id: string; name: string; path: string; hasBeads: boolean }[];
+  sessions: { pid: number; workingDir: string; projectName?: string }[];
+  discovered: { id: string; name: string; path: string }[];
+}
 
 export default function Dashboard() {
   const { data: stats } = useQuery({
@@ -13,37 +20,79 @@ export default function Dashboard() {
     queryFn: () => window.electronAPI?.getModeStatus(),
   });
 
+  const { data: systemStatus } = useQuery({
+    queryKey: ['system-status'],
+    queryFn: () => window.electronAPI?.getSystemStatus() as Promise<SystemStatus>,
+    refetchInterval: 10000,
+  });
+
+  const projectCount = systemStatus?.projects?.length || 0;
+  const sessionCount = systemStatus?.sessions?.length || 0;
+  const discoveredCount = systemStatus?.discovered?.length || 0;
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-white">Town Overview</h2>
 
       {/* Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={Circle}
-          label="Total Beads"
-          value={stats?.total || 0}
-          color="text-cyan-400"
-        />
-        <StatCard
-          icon={Activity}
-          label="Active"
-          value={stats?.byStatus?.active || 0}
-          color="text-green-400"
-        />
-        <StatCard
-          icon={Users}
-          label="Agents"
-          value="-"
-          color="text-purple-400"
-        />
-        <StatCard
-          icon={Boxes}
-          label="Convoys"
-          value="-"
-          color="text-orange-400"
-        />
+        <Link to="/projects">
+          <StatCard
+            icon={FolderGit}
+            label="Projects"
+            value={projectCount}
+            color="text-cyan-400"
+            subtitle={discoveredCount > 0 ? `${discoveredCount} more found` : undefined}
+          />
+        </Link>
+        <Link to="/agents">
+          <StatCard
+            icon={Terminal}
+            label="Claude Sessions"
+            value={sessionCount}
+            color={sessionCount > 0 ? "text-green-400" : "text-slate-400"}
+            subtitle={sessionCount > 0 ? "Active" : "None running"}
+          />
+        </Link>
+        <Link to="/beads">
+          <StatCard
+            icon={Circle}
+            label="Beads"
+            value={stats?.total || 0}
+            color="text-purple-400"
+            subtitle={stats?.byStatus?.active ? `${stats.byStatus.active} active` : undefined}
+          />
+        </Link>
+        <Link to="/convoys">
+          <StatCard
+            icon={Boxes}
+            label="Convoys"
+            value="-"
+            color="text-orange-400"
+          />
+        </Link>
       </div>
+
+      {/* Active Sessions Quick View */}
+      {sessionCount > 0 && (
+        <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+          <h3 className="text-sm font-medium text-slate-400 mb-3">Active Claude Sessions</h3>
+          <div className="space-y-2">
+            {systemStatus?.sessions?.slice(0, 3).map((session) => (
+              <div key={session.pid} className="flex items-center gap-3 text-sm">
+                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                <span className="text-white">{session.projectName || 'Claude Code'}</span>
+                <span className="text-slate-500 text-xs">PID: {session.pid}</span>
+              </div>
+            ))}
+            {sessionCount > 3 && (
+              <Link to="/agents" className="text-xs text-cyan-400 hover:text-cyan-300">
+                +{sessionCount - 3} more sessions →
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Mode Status */}
       <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
@@ -114,14 +163,16 @@ function StatCard({
   label,
   value,
   color,
+  subtitle,
 }: {
   icon: React.ElementType;
   label: string;
   value: number | string;
   color: string;
+  subtitle?: string;
 }) {
   return (
-    <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+    <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-slate-600 transition-colors cursor-pointer">
       <div className="flex items-center gap-3">
         <div className={`p-2 rounded-lg bg-slate-900 ${color}`}>
           <Icon size={20} />
@@ -129,6 +180,7 @@ function StatCard({
         <div>
           <p className="text-sm text-slate-400">{label}</p>
           <p className="text-2xl font-bold text-white">{value}</p>
+          {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
         </div>
       </div>
     </div>
