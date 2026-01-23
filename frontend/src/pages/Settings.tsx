@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Monitor, Terminal, Folder, RefreshCw, Download, Info } from 'lucide-react';
+import { Settings as SettingsIcon, Monitor, Terminal, Folder, RefreshCw, Download, Info, Cpu, Save } from 'lucide-react';
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -10,7 +10,7 @@ export default function Settings() {
     queryFn: () => window.electronAPI?.getAllSettings(),
   });
 
-  const { data: modeStatus, refetch: refetchStatus } = useQuery({
+  const { data: modeStatus, refetch: refetchStatus, isRefetching } = useQuery({
     queryKey: ['mode-status-settings'],
     queryFn: () => window.electronAPI?.detectModes(),
   });
@@ -47,120 +47,154 @@ export default function Settings() {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-        <SettingsIcon className="w-6 h-6" />
-        Settings
-      </h2>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+          <SettingsIcon className="w-6 h-6" />
+          Settings
+        </h2>
+        <button
+          onClick={handleSave}
+          disabled={saveMutation.isPending}
+          className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-600 disabled:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+        >
+          <Save size={16} />
+          {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
+        </button>
+      </div>
 
-      {/* Execution Mode */}
-      <section className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-        <h3 className="text-lg font-semibold mb-4">Execution Mode</h3>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm text-slate-400 mb-2">Default Mode</label>
-            <div className="flex gap-2">
-              {(['auto', 'windows', 'wsl'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setDefaultMode(mode)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    defaultMode === mode
-                      ? 'bg-cyan-500 text-white'
-                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                  }`}
-                >
-                  {mode === 'auto' ? 'Auto-detect' : mode === 'windows' ? 'Windows' : 'WSL'}
-                </button>
-              ))}
+      {/* Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Execution Mode Card */}
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-cyan-500/20 rounded-lg">
+              <Cpu size={18} className="text-cyan-400" />
             </div>
+            <h3 className="font-semibold text-white">Execution Mode</h3>
           </div>
 
-          {/* Status */}
-          <div className="p-4 bg-slate-900 rounded-lg">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium">Detection Status</span>
-              <button
-                onClick={() => refetchStatus()}
-                className="text-slate-400 hover:text-white"
-              >
-                <RefreshCw size={14} />
-              </button>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs text-slate-400 mb-2 uppercase tracking-wide">Default Mode</label>
+              <div className="flex gap-2">
+                {(['auto', 'windows', 'wsl'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setDefaultMode(mode)}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      defaultMode === mode
+                        ? 'bg-cyan-500 text-white'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    }`}
+                  >
+                    {mode === 'auto' ? 'Auto' : mode === 'windows' ? 'Windows' : 'WSL'}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+          </div>
+        </div>
+
+        {/* Detection Status Card */}
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-green-500/20 rounded-lg">
+                <RefreshCw size={18} className={`text-green-400 ${isRefetching ? 'animate-spin' : ''}`} />
+              </div>
+              <h3 className="font-semibold text-white">Claude Detection</h3>
+            </div>
+            <button
+              onClick={() => refetchStatus()}
+              className="text-xs text-slate-400 hover:text-white px-2 py-1 hover:bg-slate-700 rounded"
+            >
+              Refresh
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
               <div className="flex items-center gap-2">
-                <Monitor size={14} className="text-slate-400" />
-                <span>Windows:</span>
-                <span className={modeStatus?.windows?.available ? 'text-green-400' : 'text-red-400'}>
-                  {modeStatus?.windows?.available ? 'Available' : 'Not found'}
-                </span>
+                <Monitor size={16} className="text-slate-400" />
+                <span className="text-sm">Windows</span>
               </div>
               <div className="flex items-center gap-2">
-                <Terminal size={14} className="text-slate-400" />
-                <span>WSL:</span>
-                <span className={modeStatus?.wsl?.available ? 'text-green-400' : 'text-red-400'}>
-                  {modeStatus?.wsl?.available ? `${modeStatus.wsl.distro}` : 'Not found'}
+                <span className={`w-2 h-2 rounded-full ${modeStatus?.windows?.available ? 'bg-green-400' : 'bg-red-400'}`} />
+                <span className={`text-sm ${modeStatus?.windows?.available ? 'text-green-400' : 'text-red-400'}`}>
+                  {modeStatus?.windows?.available ? modeStatus.windows.version || 'Available' : 'Not found'}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Terminal size={16} className="text-slate-400" />
+                <span className="text-sm">WSL</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${modeStatus?.wsl?.available ? 'bg-green-400' : 'bg-red-400'}`} />
+                <span className={`text-sm ${modeStatus?.wsl?.available ? 'text-green-400' : 'text-red-400'}`}>
+                  {modeStatus?.wsl?.available ? modeStatus.wsl.distro : 'Not found'}
                 </span>
               </div>
             </div>
           </div>
         </div>
-      </section>
 
-      {/* Paths */}
-      <section className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-        <h3 className="text-lg font-semibold mb-4">Paths</h3>
+        {/* Gas Town Path Card */}
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-purple-500/20 rounded-lg">
+              <Folder size={18} className="text-purple-400" />
+            </div>
+            <h3 className="font-semibold text-white">Workspace Path</h3>
+          </div>
 
-        <div className="space-y-4">
           <div>
-            <label className="block text-sm text-slate-400 mb-2">
-              <Folder size={14} className="inline mr-1" />
-              Gas Town Workspace
-            </label>
+            <label className="block text-xs text-slate-400 mb-2 uppercase tracking-wide">Gas Town Directory</label>
             <input
               type="text"
               value={gastownPath}
               onChange={(e) => setGastownPath(e.target.value)}
               placeholder="C:\Users\username\gt"
-              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500"
             />
+            <p className="text-xs text-slate-500 mt-2">Where Gas Town stores projects and data</p>
+          </div>
+        </div>
+
+        {/* WSL Config Card */}
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-orange-500/20 rounded-lg">
+              <Terminal size={18} className="text-orange-400" />
+            </div>
+            <h3 className="font-semibold text-white">WSL Configuration</h3>
           </div>
 
           <div>
-            <label className="block text-sm text-slate-400 mb-2">
-              <Terminal size={14} className="inline mr-1" />
-              WSL Distro (optional)
-            </label>
+            <label className="block text-xs text-slate-400 mb-2 uppercase tracking-wide">Distro Name</label>
             <input
               type="text"
               value={wslDistro}
               onChange={(e) => setWslDistro(e.target.value)}
-              placeholder="Ubuntu-22.04 (leave empty for default)"
-              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+              placeholder="Ubuntu-22.04"
+              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500"
             />
+            <p className="text-xs text-slate-500 mt-2">Leave empty to use default WSL distro</p>
           </div>
         </div>
-      </section>
 
-      {/* About */}
-      <AboutSection />
-
-      {/* Save */}
-      <div className="flex justify-end">
-        <button
-          onClick={handleSave}
-          disabled={saveMutation.isPending}
-          className="bg-cyan-500 hover:bg-cyan-600 disabled:bg-slate-600 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-        >
-          {saveMutation.isPending ? 'Saving...' : 'Save Settings'}
-        </button>
+        {/* About Card - Full Width */}
+        <div className="md:col-span-2">
+          <AboutCard />
+        </div>
       </div>
     </div>
   );
 }
 
-function AboutSection() {
+function AboutCard() {
   const [version, setVersion] = useState<string>('');
   const [checking, setChecking] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<string>('');
@@ -204,42 +238,51 @@ function AboutSection() {
   };
 
   return (
-    <section className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-        <Info size={18} />
-        About
-      </h3>
+    <div className="bg-slate-800 rounded-lg border border-slate-700 p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="p-2 bg-blue-500/20 rounded-lg">
+          <Info size={18} className="text-blue-400" />
+        </div>
+        <h3 className="font-semibold text-white">About AI Controller</h3>
+      </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-400">Version</p>
-            <p className="text-white font-mono">{version || 'Loading...'}</p>
-          </div>
-          <button
-            onClick={handleCheckForUpdates}
-            disabled={checking}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded-lg transition-colors"
-          >
-            <Download size={16} className={checking ? 'animate-bounce' : ''} />
-            Check for Updates
-          </button>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Version Info */}
+        <div className="p-4 bg-slate-900 rounded-lg">
+          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Version</p>
+          <p className="text-xl font-mono text-white">{version || '...'}</p>
         </div>
 
-        {updateStatus && (
-          <div className="p-3 bg-slate-900 rounded-lg flex items-center justify-between">
-            <span className="text-sm text-slate-300">{updateStatus}</span>
-            {updateStatus === 'Update ready to install' && (
-              <button
-                onClick={handleInstallUpdate}
-                className="text-sm bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-1.5 rounded font-medium transition-colors"
-              >
-                Restart & Update
-              </button>
-            )}
-          </div>
-        )}
+        {/* Update Status */}
+        <div className="p-4 bg-slate-900 rounded-lg">
+          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Status</p>
+          <p className="text-sm text-slate-300">
+            {updateStatus || 'Up to date'}
+          </p>
+        </div>
+
+        {/* Actions */}
+        <div className="p-4 bg-slate-900 rounded-lg flex items-center justify-center gap-2">
+          {updateStatus === 'Update ready to install' ? (
+            <button
+              onClick={handleInstallUpdate}
+              className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              <Download size={16} />
+              Install Update
+            </button>
+          ) : (
+            <button
+              onClick={handleCheckForUpdates}
+              disabled={checking}
+              className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+            >
+              <RefreshCw size={16} className={checking ? 'animate-spin' : ''} />
+              Check Updates
+            </button>
+          )}
+        </div>
       </div>
-    </section>
+    </div>
   );
 }
