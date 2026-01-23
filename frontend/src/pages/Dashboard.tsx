@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Circle, Users, Boxes, Activity } from 'lucide-react';
+import { Circle, Users, Boxes, Activity, RefreshCw } from 'lucide-react';
 
 export default function Dashboard() {
   const { data: stats } = useQuery({
@@ -8,7 +8,7 @@ export default function Dashboard() {
     refetchInterval: 30000,
   });
 
-  const { data: modeStatus } = useQuery({
+  const { data: modeStatus, refetch: refetchModeStatus, isRefetching } = useQuery({
     queryKey: ['mode-status'],
     queryFn: () => window.electronAPI?.getModeStatus(),
   });
@@ -47,7 +47,17 @@ export default function Dashboard() {
 
       {/* Mode Status */}
       <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-        <h3 className="text-lg font-semibold mb-4">Execution Mode Status</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">Execution Mode Status</h3>
+          <button
+            onClick={() => refetchModeStatus()}
+            disabled={isRefetching}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded-lg transition-colors"
+          >
+            <RefreshCw size={14} className={isRefetching ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="p-4 bg-slate-900 rounded-lg">
             <div className="flex items-center gap-2 mb-2">
