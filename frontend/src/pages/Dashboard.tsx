@@ -172,7 +172,7 @@ function StatCard({
   subtitle?: string;
 }) {
   return (
-    <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-slate-600 transition-colors cursor-pointer">
+    <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-slate-600 transition-colors cursor-pointer h-full">
       <div className="flex items-center gap-3">
         <div className={`p-2 rounded-lg bg-slate-900 ${color}`}>
           <Icon size={20} />
@@ -180,7 +180,7 @@ function StatCard({
         <div>
           <p className="text-sm text-slate-400">{label}</p>
           <p className="text-2xl font-bold text-white">{value}</p>
-          {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+          <p className="text-xs text-slate-500 h-4">{subtitle || '\u00A0'}</p>
         </div>
       </div>
     </div>
