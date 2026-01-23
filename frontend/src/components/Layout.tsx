@@ -1,4 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   Terminal,
@@ -22,6 +23,12 @@ const navItems = [
 ];
 
 export default function Layout() {
+  const [version, setVersion] = useState<string>('');
+
+  useEffect(() => {
+    window.electronAPI?.getVersion().then(setVersion);
+  }, []);
+
   return (
     <div className="flex h-screen bg-slate-900">
       {/* Sidebar */}
@@ -59,6 +66,9 @@ export default function Layout() {
           <div className="flex items-center gap-4">
             <UpdateBanner />
             <ModeToggle />
+            {version && (
+              <span className="text-xs text-slate-500 font-mono">v{version}</span>
+            )}
           </div>
         </header>
 
