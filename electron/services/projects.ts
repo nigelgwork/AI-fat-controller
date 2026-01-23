@@ -198,11 +198,11 @@ export async function detectClaudeSessions(): Promise<ClaudeSession[]> {
 
   try {
     if (process.platform === 'win32') {
-      // Windows: Use PowerShell to get Claude processes with command line and working directory
+      // Windows: Look for node.exe processes running claude CLI
+      // Claude Code CLI runs as: node.exe "...\cli.js" or similar
       try {
-        // Get Claude processes with full command line using WMI
         const { stdout } = await execAsync(
-          `powershell -Command "Get-WmiObject Win32_Process | Where-Object { $_.Name -like '*claude*' -or ($_.CommandLine -and $_.CommandLine -like '*claude*') } | Select-Object ProcessId,Name,CommandLine,CreationDate | ConvertTo-Json"`,
+          `powershell -Command "Get-WmiObject Win32_Process | Where-Object { $_.CommandLine -and $_.CommandLine -like '*claude*' -and $_.CommandLine -like '*cli*' } | Select-Object ProcessId,Name,CommandLine,CreationDate | ConvertTo-Json"`,
           { timeout: 15000 }
         );
 
@@ -215,15 +215,17 @@ export async function detectClaudeSessions(): Promise<ClaudeSession[]> {
             if (!proc.ProcessId || seenPids.has(proc.ProcessId)) continue;
 
             const cmdLine = proc.CommandLine || '';
-            const name = proc.Name || '';
 
-            // Skip if not actually Claude related
-            if (!name.toLowerCase().includes('claude') && !cmdLine.toLowerCase().includes('claude')) {
+            // Must be a CLI process (node running claude cli.js)
+            if (!cmdLine.toLowerCase().includes('cli')) {
               continue;
             }
 
-            // Skip helper/utility processes, only show main sessions
-            if (cmdLine.includes('--type=') || cmdLine.includes('crashpad')) {
+            // Skip Electron/Desktop app processes
+            if (cmdLine.includes('AnthropicClaude') ||
+                cmdLine.includes('--type=') ||
+                cmdLine.includes('crashpad') ||
+                cmdLine.includes('electron')) {
               continue;
             }
 
@@ -232,34 +234,15 @@ export async function detectClaudeSessions(): Promise<ClaudeSession[]> {
             // Try to extract working directory from command line
             let workingDir = '';
 
-            // Look for common patterns in command line that indicate working dir
-            // Pattern: --cwd "path" or running in a specific directory
-            const cwdMatch = cmdLine.match(/--cwd[=\s]["']?([^"'\s]+)["']?/i);
+            // Look for --cwd or -p (project) flags
+            const cwdMatch = cmdLine.match(/(?:--cwd|--project|-p)[=\s]["']?([A-Za-z]:[^"'\s]+|\/[^"'\s]+)["']?/i);
             if (cwdMatch) {
               workingDir = cwdMatch[1];
-            }
-
-            // Try to get working directory using handle.exe alternative - PowerShell method
-            if (!workingDir) {
-              try {
-                const { stdout: cwdResult } = await execAsync(
-                  `powershell -Command "(Get-Process -Id ${proc.ProcessId}).Path | Split-Path -Parent"`,
-                  { timeout: 3000 }
-                );
-                // This gives us the exe location, not the working dir, but it's something
-                const exePath = cwdResult.trim();
-                if (exePath && !exePath.includes('AppData')) {
-                  workingDir = exePath;
-                }
-              } catch {
-                // Ignore
-              }
             }
 
             // Parse start time
             let startTime = '';
             if (proc.CreationDate) {
-              // WMI date format: 20250123121234.123456+000
               const match = proc.CreationDate.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
               if (match) {
                 const date = new Date(
@@ -270,16 +253,68 @@ export async function detectClaudeSessions(): Promise<ClaudeSession[]> {
               }
             }
 
+            // Extract meaningful part of command for display
+            let displayCmd = 'Claude Code CLI';
+            if (cmdLine.includes('--print') || cmdLine.includes('-p ')) {
+              displayCmd = 'Claude Code (one-shot)';
+            } else if (cmdLine.includes('--resume') || cmdLine.includes('-r')) {
+              displayCmd = 'Claude Code (resumed session)';
+            }
+
             sessions.push({
               pid: proc.ProcessId,
               workingDir,
-              command: cmdLine.length > 100 ? cmdLine.substring(0, 100) + '...' : cmdLine,
+              command: displayCmd,
               startTime,
             });
           }
         }
       } catch (err) {
         console.error('PowerShell detection failed:', err);
+      }
+
+      // Also check WSL for Claude Code sessions
+      try {
+        const { stdout: wslOutput } = await execAsync(
+          'wsl.exe -e bash -c "ps aux | grep -E \'claude|node.*cli\' | grep -v grep" 2>/dev/null',
+          { timeout: 10000 }
+        );
+
+        if (wslOutput.trim()) {
+          const lines = wslOutput.trim().split('\n');
+          for (const line of lines) {
+            const parts = line.split(/\s+/);
+            if (parts.length >= 11) {
+              const pid = parseInt(parts[1]);
+              const command = parts.slice(10).join(' ');
+
+              // Skip if not actually claude CLI
+              if (!command.includes('claude') && !command.includes('cli')) {
+                continue;
+              }
+
+              // Try to get working directory
+              let workingDir = '';
+              try {
+                const { stdout: cwd } = await execAsync(
+                  `wsl.exe -e bash -c "readlink -f /proc/${pid}/cwd 2>/dev/null"`,
+                  { timeout: 3000 }
+                );
+                workingDir = cwd.trim();
+              } catch {
+                // Ignore
+              }
+
+              sessions.push({
+                pid,
+                workingDir: workingDir ? `(WSL) ${workingDir}` : '(WSL)',
+                command: 'Claude Code CLI (WSL)',
+              });
+            }
+          }
+        }
+      } catch {
+        // WSL not available or no sessions
       }
     } else {
       // Unix-like: Use ps
