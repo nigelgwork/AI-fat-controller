@@ -1,11 +1,32 @@
 import { spawn } from 'child_process';
 import { app } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { settings } from './settings';
 
 const execAsync = promisify(exec);
+
+// Ensure a directory exists
+function ensureDir(dirPath: string): void {
+  try {
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+  } catch (err) {
+    console.error(`Failed to create directory ${dirPath}:`, err);
+  }
+}
+
+// Get a valid working directory
+function getValidCwd(preferredPath: string): string {
+  if (fs.existsSync(preferredPath)) {
+    return preferredPath;
+  }
+  // Fall back to user's home directory
+  return app.getPath('home');
+}
 
 export interface ExecuteResult {
   success: boolean;
@@ -55,9 +76,10 @@ class WindowsExecutor implements IExecutor {
     this.gtPath = path.join(resourcesPath, 'gt.exe');
     this.bdPath = path.join(resourcesPath, 'bd.exe');
 
-    // Gas Town workspace
+    // Gas Town workspace - ensure it exists
     this.gastownPath = settings.get('gastownPath') as string ||
       path.join(app.getPath('home'), 'gt');
+    ensureDir(this.gastownPath);
   }
 
   private async findWindowsClaude(): Promise<string> {
@@ -73,7 +95,16 @@ class WindowsExecutor implements IExecutor {
 
   async runClaude(message: string, systemPrompt?: string): Promise<ExecuteResult> {
     const start = Date.now();
-    const args = ['--print', '--output-format', 'text', '--no-session-persistence'];
+
+    if (!this.claudePath) {
+      return {
+        success: false,
+        error: 'Claude Code not found. Please install Claude Code CLI and ensure it is in your PATH.',
+        duration: Date.now() - start,
+      };
+    }
+
+    const args = ['--print', '--output-format', 'text'];
 
     if (systemPrompt) {
       args.push('--system-prompt', systemPrompt);
@@ -85,11 +116,29 @@ class WindowsExecutor implements IExecutor {
 
   async runGt(args: string[]): Promise<ExecuteResult> {
     const start = Date.now();
+
+    if (!fs.existsSync(this.gtPath)) {
+      return {
+        success: false,
+        error: `Gas Town CLI not found at ${this.gtPath}. The gt tool may not be bundled correctly.`,
+        duration: Date.now() - start,
+      };
+    }
+
     return this.spawn(this.gtPath, args, {}, start);
   }
 
   async runBd(args: string[]): Promise<ExecuteResult> {
     const start = Date.now();
+
+    if (!fs.existsSync(this.bdPath)) {
+      return {
+        success: false,
+        error: `Beads CLI not found at ${this.bdPath}. The bd tool may not be bundled correctly.`,
+        duration: Date.now() - start,
+      };
+    }
+
     return this.spawn(this.bdPath, args, {}, start);
   }
 
@@ -101,10 +150,13 @@ class WindowsExecutor implements IExecutor {
     timeout = 120000
   ): Promise<ExecuteResult> {
     return new Promise((resolve) => {
+      const cwd = getValidCwd(this.gastownPath);
+
       const child = spawn(cmd, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
         env: { ...process.env, GASTOWN_PATH: this.gastownPath },
-        cwd: this.gastownPath,
+        cwd,
+        windowsHide: true,
         ...opts,
       });
 
