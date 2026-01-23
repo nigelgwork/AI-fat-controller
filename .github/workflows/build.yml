@@ -1,0 +1,93 @@
+name: Build Electron App
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build Go tools (gt and bd)
+        shell: bash
+        run: |
+          mkdir -p resources/bin
+
+          # Clone and build gt
+          git clone --depth 1 https://github.com/steveyegge/gastown.git .go-build-temp/gastown
+          cd .go-build-temp/gastown
+          go build -o ../../resources/bin/gt.exe ./cmd/gt
+          cd ../..
+
+          # Clone and build bd
+          git clone --depth 1 https://github.com/steveyegge/beads.git .go-build-temp/beads
+          cd .go-build-temp/beads
+          go build -o ../../resources/bin/bd.exe ./cmd/bd
+          cd ../..
+
+          # Verify builds
+          ls -la resources/bin/
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build:frontend
+
+      - name: Build Electron
+        run: npm run build:electron
+
+      - name: Package for Windows
+        run: npx electron-builder --win --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-controller-windows
+          path: |
+            release/*.exe
+            release/*.zip
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ai-controller-windows
+          path: release
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/*
+          draft: true
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

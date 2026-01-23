@@ -1,7 +1,0 @@
-packages:
-  - .
-
-ignoredBuiltDependencies:
-  - node-pty
-  - sharp
-  - unrs-resolver
