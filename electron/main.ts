@@ -5,11 +5,6 @@ import { getExecutor } from './services/executor';
 import { settings, initSettings } from './services/settings';
 import { registerIpcHandlers } from './ipc/handlers';
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling
-if (require('electron-squirrel-startup')) {
-  app.quit();
-}
-
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 
