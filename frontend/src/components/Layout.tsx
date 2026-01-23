@@ -8,6 +8,7 @@ import {
   Settings,
 } from 'lucide-react';
 import ModeToggle from './ModeToggle';
+import UpdateBanner from './UpdateBanner';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -54,6 +55,7 @@ export default function Layout() {
         <header className="h-14 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-4">
           <h1 className="text-lg font-semibold text-white">AI Controller</h1>
           <div className="flex items-center gap-4">
+            <UpdateBanner />
             <ModeToggle />
           </div>
         </header>

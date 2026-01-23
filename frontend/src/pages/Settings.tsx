@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Monitor, Terminal, Folder, RefreshCw } from 'lucide-react';
+import { Settings as SettingsIcon, Monitor, Terminal, Folder, RefreshCw, Download, Info } from 'lucide-react';
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -143,6 +143,9 @@ export default function Settings() {
         </div>
       </section>
 
+      {/* About */}
+      <AboutSection />
+
       {/* Save */}
       <div className="flex justify-end">
         <button
@@ -154,5 +157,89 @@ export default function Settings() {
         </button>
       </div>
     </div>
+  );
+}
+
+function AboutSection() {
+  const [version, setVersion] = useState<string>('');
+  const [checking, setChecking] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<string>('');
+
+  useEffect(() => {
+    window.electronAPI?.getVersion().then(setVersion);
+
+    const unsubAvailable = window.electronAPI?.onUpdateAvailable(() => {
+      setUpdateStatus('Update available, downloading...');
+    });
+
+    const unsubDownloaded = window.electronAPI?.onUpdateDownloaded(() => {
+      setUpdateStatus('Update ready to install');
+    });
+
+    return () => {
+      unsubAvailable?.();
+      unsubDownloaded?.();
+    };
+  }, []);
+
+  const handleCheckForUpdates = async () => {
+    setChecking(true);
+    setUpdateStatus('Checking...');
+    try {
+      await window.electronAPI?.checkForUpdates();
+      setTimeout(() => {
+        if (updateStatus === 'Checking...') {
+          setUpdateStatus('You are on the latest version');
+        }
+        setChecking(false);
+      }, 3000);
+    } catch {
+      setUpdateStatus('Failed to check for updates');
+      setChecking(false);
+    }
+  };
+
+  const handleInstallUpdate = () => {
+    window.electronAPI?.installUpdate();
+  };
+
+  return (
+    <section className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+        <Info size={18} />
+        About
+      </h3>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-slate-400">Version</p>
+            <p className="text-white font-mono">{version || 'Loading...'}</p>
+          </div>
+          <button
+            onClick={handleCheckForUpdates}
+            disabled={checking}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded-lg transition-colors"
+          >
+            <Download size={16} className={checking ? 'animate-bounce' : ''} />
+            Check for Updates
+          </button>
+        </div>
+
+        {updateStatus && (
+          <div className="p-3 bg-slate-900 rounded-lg flex items-center justify-between">
+            <span className="text-sm text-slate-300">{updateStatus}</span>
+            {updateStatus === 'Update ready to install' && (
+              <button
+                onClick={handleInstallUpdate}
+                className="text-sm bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-1.5 rounded font-medium transition-colors"
+              >
+                Restart & Update
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
