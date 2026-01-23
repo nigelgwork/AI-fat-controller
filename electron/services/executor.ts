@@ -76,10 +76,16 @@ class WindowsExecutor implements IExecutor {
     this.gtPath = path.join(resourcesPath, 'gt.exe');
     this.bdPath = path.join(resourcesPath, 'bd.exe');
 
+    console.log('[Executor] Initialized WindowsExecutor');
+    console.log('[Executor] Claude path:', this.claudePath);
+    console.log('[Executor] gt path:', this.gtPath, '- exists:', fs.existsSync(this.gtPath));
+    console.log('[Executor] bd path:', this.bdPath, '- exists:', fs.existsSync(this.bdPath));
+
     // Gas Town workspace - ensure it exists
     this.gastownPath = settings.get('gastownPath') as string ||
       path.join(app.getPath('home'), 'gt');
     ensureDir(this.gastownPath);
+    console.log('[Executor] Gastown path:', this.gastownPath);
   }
 
   private async findWindowsClaude(): Promise<string> {
