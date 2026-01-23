@@ -1,6 +1,6 @@
 {
   "name": "ai-controller",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "AI Controller - Multi-agent orchestration dashboard",
   "private": true,
   "main": "dist-electron/main.js",

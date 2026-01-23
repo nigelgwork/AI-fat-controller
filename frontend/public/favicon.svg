@@ -1,40 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#0891b2;stop-opacity:1" />
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0ea5e9"/>
+      <stop offset="100%" style="stop-color:#06b6d4"/>
     </linearGradient>
   </defs>
-  <!-- Background circle -->
-  <circle cx="256" cy="256" r="240" fill="#0f172a"/>
-  <circle cx="256" cy="256" r="220" fill="none" stroke="url(#grad)" stroke-width="8"/>
 
-  <!-- Central brain/controller node -->
-  <circle cx="256" cy="256" r="60" fill="url(#grad)"/>
-  <circle cx="256" cy="256" r="45" fill="#0f172a"/>
-  <circle cx="256" cy="256" r="25" fill="url(#grad)"/>
+  <!-- Bright cyan background -->
+  <rect width="512" height="512" rx="90" fill="url(#bg)"/>
 
-  <!-- Outer agent nodes -->
-  <circle cx="256" cy="100" r="35" fill="url(#grad)"/>
-  <circle cx="256" cy="412" r="35" fill="url(#grad)"/>
-  <circle cx="100" cy="256" r="35" fill="url(#grad)"/>
-  <circle cx="412" cy="256" r="35" fill="url(#grad)"/>
+  <!-- White "AI" text stylized as circuit -->
+  <!-- A letter -->
+  <path d="M120 380 L200 130 L280 380 M150 300 L250 300"
+        fill="none" stroke="white" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
 
-  <!-- Diagonal nodes -->
-  <circle cx="146" cy="146" r="28" fill="url(#grad)" opacity="0.8"/>
-  <circle cx="366" cy="146" r="28" fill="url(#grad)" opacity="0.8"/>
-  <circle cx="146" cy="366" r="28" fill="url(#grad)" opacity="0.8"/>
-  <circle cx="366" cy="366" r="28" fill="url(#grad)" opacity="0.8"/>
+  <!-- I letter with circuit nodes -->
+  <line x1="360" y1="130" x2="360" y2="380" stroke="white" stroke-width="36" stroke-linecap="round"/>
 
-  <!-- Connection lines -->
-  <line x1="256" y1="135" x2="256" y2="196" stroke="url(#grad)" stroke-width="6"/>
-  <line x1="256" y1="316" x2="256" y2="377" stroke="url(#grad)" stroke-width="6"/>
-  <line x1="135" y1="256" x2="196" y2="256" stroke="url(#grad)" stroke-width="6"/>
-  <line x1="316" y1="256" x2="377" y2="256" stroke="url(#grad)" stroke-width="6"/>
+  <!-- Top node/dot on I -->
+  <circle cx="360" cy="90" r="24" fill="white"/>
 
-  <!-- Diagonal connections -->
-  <line x1="168" y1="168" x2="220" y2="220" stroke="url(#grad)" stroke-width="4" opacity="0.7"/>
-  <line x1="344" y1="168" x2="292" y2="220" stroke="url(#grad)" stroke-width="4" opacity="0.7"/>
-  <line x1="168" y1="344" x2="220" y2="292" stroke="url(#grad)" stroke-width="4" opacity="0.7"/>
-  <line x1="344" y1="344" x2="292" y2="292" stroke="url(#grad)" stroke-width="4" opacity="0.7"/>
+  <!-- Circuit connection dots -->
+  <circle cx="420" cy="200" r="18" fill="white" opacity="0.9"/>
+  <circle cx="420" cy="310" r="18" fill="white" opacity="0.9"/>
+  <circle cx="450" cy="255" r="14" fill="white" opacity="0.7"/>
+
+  <!-- Connection lines from I -->
+  <line x1="378" y1="200" x2="402" y2="200" stroke="white" stroke-width="8" opacity="0.9"/>
+  <line x1="378" y1="310" x2="402" y2="310" stroke="white" stroke-width="8" opacity="0.9"/>
+  <line x1="438" y1="200" x2="450" y2="241" stroke="white" stroke-width="6" opacity="0.7"/>
+  <line x1="438" y1="310" x2="450" y2="269" stroke="white" stroke-width="6" opacity="0.7"/>
 </svg>
