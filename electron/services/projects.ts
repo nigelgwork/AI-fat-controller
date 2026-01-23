@@ -198,46 +198,88 @@ export async function detectClaudeSessions(): Promise<ClaudeSession[]> {
 
   try {
     if (process.platform === 'win32') {
-      // Windows: Use WMIC or PowerShell
+      // Windows: Use PowerShell to get Claude processes with command line and working directory
       try {
+        // Get Claude processes with full command line using WMI
         const { stdout } = await execAsync(
-          'powershell -Command "Get-Process | Where-Object {$_.ProcessName -like \'*claude*\' -or $_.ProcessName -like \'*node*\'} | Select-Object Id,ProcessName,Path,StartTime | ConvertTo-Json"',
-          { timeout: 10000 }
+          `powershell -Command "Get-WmiObject Win32_Process | Where-Object { $_.Name -like '*claude*' -or ($_.CommandLine -and $_.CommandLine -like '*claude*') } | Select-Object ProcessId,Name,CommandLine,CreationDate | ConvertTo-Json"`,
+          { timeout: 15000 }
         );
 
         if (stdout.trim()) {
           const processes = JSON.parse(stdout);
           const procList = Array.isArray(processes) ? processes : [processes];
+          const seenPids = new Set<number>();
 
           for (const proc of procList) {
-            if (proc.Path && (proc.Path.includes('claude') || proc.ProcessName === 'claude')) {
-              sessions.push({
-                pid: proc.Id,
-                workingDir: path.dirname(proc.Path),
-                command: proc.ProcessName,
-                startTime: proc.StartTime,
-              });
-            }
-          }
-        }
-      } catch {
-        // Try wmic as fallback
-        const { stdout } = await execAsync(
-          'wmic process where "name like \'%claude%\'" get processid,commandline,creationdate /format:csv',
-          { timeout: 10000 }
-        );
+            if (!proc.ProcessId || seenPids.has(proc.ProcessId)) continue;
 
-        const lines = stdout.trim().split('\n').slice(1);
-        for (const line of lines) {
-          const parts = line.split(',');
-          if (parts.length >= 3) {
+            const cmdLine = proc.CommandLine || '';
+            const name = proc.Name || '';
+
+            // Skip if not actually Claude related
+            if (!name.toLowerCase().includes('claude') && !cmdLine.toLowerCase().includes('claude')) {
+              continue;
+            }
+
+            // Skip helper/utility processes, only show main sessions
+            if (cmdLine.includes('--type=') || cmdLine.includes('crashpad')) {
+              continue;
+            }
+
+            seenPids.add(proc.ProcessId);
+
+            // Try to extract working directory from command line
+            let workingDir = '';
+
+            // Look for common patterns in command line that indicate working dir
+            // Pattern: --cwd "path" or running in a specific directory
+            const cwdMatch = cmdLine.match(/--cwd[=\s]["']?([^"'\s]+)["']?/i);
+            if (cwdMatch) {
+              workingDir = cwdMatch[1];
+            }
+
+            // Try to get working directory using handle.exe alternative - PowerShell method
+            if (!workingDir) {
+              try {
+                const { stdout: cwdResult } = await execAsync(
+                  `powershell -Command "(Get-Process -Id ${proc.ProcessId}).Path | Split-Path -Parent"`,
+                  { timeout: 3000 }
+                );
+                // This gives us the exe location, not the working dir, but it's something
+                const exePath = cwdResult.trim();
+                if (exePath && !exePath.includes('AppData')) {
+                  workingDir = exePath;
+                }
+              } catch {
+                // Ignore
+              }
+            }
+
+            // Parse start time
+            let startTime = '';
+            if (proc.CreationDate) {
+              // WMI date format: 20250123121234.123456+000
+              const match = proc.CreationDate.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
+              if (match) {
+                const date = new Date(
+                  parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]),
+                  parseInt(match[4]), parseInt(match[5]), parseInt(match[6])
+                );
+                startTime = date.toISOString();
+              }
+            }
+
             sessions.push({
-              pid: parseInt(parts[2]) || 0,
-              workingDir: '',
-              command: parts[1] || 'claude',
+              pid: proc.ProcessId,
+              workingDir,
+              command: cmdLine.length > 100 ? cmdLine.substring(0, 100) + '...' : cmdLine,
+              startTime,
             });
           }
         }
+      } catch (err) {
+        console.error('PowerShell detection failed:', err);
       }
     } else {
       // Unix-like: Use ps
@@ -281,11 +323,22 @@ export async function detectClaudeSessions(): Promise<ClaudeSession[]> {
     for (const session of sessions) {
       if (session.workingDir) {
         const project = projects.find(p =>
-          session.workingDir.startsWith(p.path) ||
-          p.path.startsWith(session.workingDir)
+          session.workingDir.toLowerCase().includes(p.path.toLowerCase()) ||
+          p.path.toLowerCase().includes(session.workingDir.toLowerCase())
         );
         if (project) {
           session.projectName = project.name;
+        }
+      }
+
+      // Also try to extract project name from command line
+      if (!session.projectName && session.command) {
+        const projects = getProjects();
+        for (const project of projects) {
+          if (session.command.toLowerCase().includes(project.name.toLowerCase())) {
+            session.projectName = project.name;
+            break;
+          }
         }
       }
     }

@@ -1,6 +1,23 @@
 import { useQuery } from '@tanstack/react-query';
 import { Users, Bot, Eye, Factory, Zap, Terminal, ArrowRight, Crown, RefreshCw, Activity, FolderGit } from 'lucide-react';
 
+function formatStartTime(isoString: string): string {
+  try {
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return date.toLocaleDateString();
+  } catch {
+    return '';
+  }
+}
+
 interface ClaudeSession {
   pid: number;
   workingDir: string;
@@ -74,18 +91,30 @@ export default function Agents() {
             {sessions.map((session) => (
               <div key={session.pid} className="p-4 hover:bg-slate-700/50 transition-colors">
                 <div className="flex items-start justify-between">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                      <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse flex-shrink-0" />
                       <span className="font-medium text-white">
                         {session.projectName || 'Claude Code Session'}
                       </span>
-                      <span className="text-xs text-slate-500">PID: {session.pid}</span>
+                      <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">
+                        PID: {session.pid}
+                      </span>
+                      {session.startTime && (
+                        <span className="text-xs text-slate-500">
+                          Started: {formatStartTime(session.startTime)}
+                        </span>
+                      )}
                     </div>
                     {session.workingDir && (
-                      <p className="text-sm text-slate-400 flex items-center gap-1">
-                        <FolderGit size={12} />
-                        {session.workingDir}
+                      <p className="text-sm text-slate-400 flex items-center gap-1 mt-1">
+                        <FolderGit size={12} className="flex-shrink-0" />
+                        <span className="truncate">{session.workingDir}</span>
+                      </p>
+                    )}
+                    {session.command && (
+                      <p className="text-xs text-slate-500 mt-1 font-mono truncate">
+                        {session.command}
                       </p>
                     )}
                   </div>
