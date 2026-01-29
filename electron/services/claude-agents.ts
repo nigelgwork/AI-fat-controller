@@ -311,17 +311,17 @@ export async function deleteAgent(id: string): Promise<void> {
 
 // Get list of plugins that have agents
 export async function getAgentPlugins(): Promise<AgentPlugin[]> {
-  const pluginDirs = getPluginDirs();
+  const sources = getAgentSourceDirs();
   const plugins: AgentPlugin[] = [];
 
-  for (const dir of pluginDirs) {
-    const agents = await scanPluginForAgents(dir);
+  for (const source of sources) {
+    const agents = await scanDirForAgents(source.path, source.name, source.isCustom);
     if (agents.length > 0) {
       plugins.push({
-        name: path.basename(dir),
-        path: dir,
+        name: source.name,
+        path: source.path,
         agentCount: agents.length,
-        isCustom: path.basename(dir) === 'custom-agents',
+        isCustom: source.isCustom,
       });
     }
   }
