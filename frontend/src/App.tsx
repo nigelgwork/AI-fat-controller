@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Terminal from './pages/Terminal';
 import Projects from './pages/Projects';
+import Sessions from './pages/Sessions';
 import Agents from './pages/Agents';
 import Beads from './pages/Beads';
 import Convoys from './pages/Convoys';
@@ -43,6 +44,7 @@ function App() {
         <Route index element={<Dashboard />} />
         <Route path="terminal" element={<Terminal />} />
         <Route path="projects" element={<Projects />} />
+        <Route path="sessions" element={<Sessions />} />
         <Route path="agents" element={<Agents />} />
         <Route path="beads" element={<Beads />} />
         <Route path="convoys" element={<Convoys />} />

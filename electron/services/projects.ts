@@ -148,6 +148,108 @@ export async function refreshProjects(): Promise<Project[]> {
   return refreshed;
 }
 
+// Discover git repos in WSL
+async function discoverWslGitRepos(): Promise<Project[]> {
+  const discovered: Project[] = [];
+
+  if (process.platform !== 'win32') {
+    return discovered;
+  }
+
+  // Common WSL development directories
+  const wslDirs = [
+    '~/git',
+    '~/repos',
+    '~/projects',
+    '~/dev',
+    '~/code',
+    '~/src',
+    '~/workspace',
+    '/git',
+  ];
+
+  try {
+    // Find git repos in WSL using a single command
+    const findCmd = wslDirs.map(d => `find ${d} -maxdepth 2 -name .git -type d 2>/dev/null`).join('; ');
+    const { stdout } = await execAsync(
+      `wsl.exe -e bash -c "${findCmd}"`,
+      { timeout: 30000 }
+    );
+
+    if (stdout.trim()) {
+      const gitDirs = stdout.trim().split('\n').filter(Boolean);
+
+      for (const gitDir of gitDirs) {
+        // gitDir is like /home/user/git/project/.git
+        const repoPath = gitDir.replace(/\/.git$/, '');
+        const repoName = path.basename(repoPath);
+
+        // Convert WSL path to Windows path for display
+        let windowsPath = repoPath;
+        try {
+          const { stdout: winPath } = await execAsync(
+            `wsl.exe -e wslpath -w "${repoPath}"`,
+            { timeout: 5000 }
+          );
+          windowsPath = winPath.trim();
+        } catch {
+          // Keep the WSL path
+        }
+
+        // Check for CLAUDE.md and .beads
+        let hasClaude = false;
+        let hasBeads = false;
+        try {
+          const { stdout: checkResult } = await execAsync(
+            `wsl.exe -e bash -c "[ -f '${repoPath}/CLAUDE.md' ] && echo 'claude'; [ -d '${repoPath}/.beads' ] && echo 'beads'"`,
+            { timeout: 5000 }
+          );
+          hasClaude = checkResult.includes('claude');
+          hasBeads = checkResult.includes('beads');
+        } catch {
+          // Ignore
+        }
+
+        // Get git info
+        let gitBranch = '';
+        let gitRemote = '';
+        try {
+          const { stdout: branchOut } = await execAsync(
+            `wsl.exe -e git -C "${repoPath}" branch --show-current`,
+            { timeout: 5000 }
+          );
+          gitBranch = branchOut.trim();
+        } catch {
+          // Ignore
+        }
+        try {
+          const { stdout: remoteOut } = await execAsync(
+            `wsl.exe -e git -C "${repoPath}" remote get-url origin 2>/dev/null`,
+            { timeout: 5000 }
+          );
+          gitRemote = remoteOut.trim();
+        } catch {
+          // Ignore
+        }
+
+        discovered.push({
+          id: generateId(),
+          name: `(WSL) ${repoName}`,
+          path: windowsPath,
+          hasBeads,
+          hasClaude,
+          gitBranch,
+          gitRemote,
+        });
+      }
+    }
+  } catch (err) {
+    console.error('WSL git repo discovery failed:', err);
+  }
+
+  return discovered;
+}
+
 // Auto-discover git repos in common locations
 export async function discoverGitRepos(): Promise<Project[]> {
   const discovered: Project[] = [];
@@ -168,7 +270,7 @@ export async function discoverGitRepos(): Promise<Project[]> {
     path.join(homeDir, 'Documents', 'projects'),
   ];
 
-  // Also check WSL paths if on Windows
+  // Also check Windows paths
   if (process.platform === 'win32') {
     scanDirs.push(
       'C:\\git',
@@ -178,6 +280,7 @@ export async function discoverGitRepos(): Promise<Project[]> {
     );
   }
 
+  // Scan Windows/native paths
   for (const dir of scanDirs) {
     try {
       await fsPromises.access(dir);
@@ -200,6 +303,16 @@ export async function discoverGitRepos(): Promise<Project[]> {
       }
     } catch {
       // Directory doesn't exist, skip
+    }
+  }
+
+  // Also scan WSL paths on Windows
+  if (process.platform === 'win32') {
+    try {
+      const wslRepos = await discoverWslGitRepos();
+      discovered.push(...wslRepos);
+    } catch (err) {
+      console.error('WSL discovery failed:', err);
     }
   }
 
