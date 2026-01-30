@@ -441,13 +441,16 @@ export async function detectClaudeSessions(): Promise<ClaudeSession[]> {
     const activeSessions = allHistorySessions.filter(s => s.status === 'running');
     const recentSessions = allHistorySessions.filter(s => s.status === 'recent').slice(0, 10);
 
-    // WINDOWS: Detect Claude processes using PowerShell
+    // WINDOWS: Detect Claude Code CLI processes using PowerShell
+    // Note: We specifically look for Claude Code CLI (.local\bin\claude.exe)
+    // and exclude Claude Desktop app (AnthropicClaude\app-*)
     if (process.platform === 'win32') {
       try {
-        // Use PowerShell to find node/claude processes
+        // Use PowerShell to find claude processes
+        // We look for claude.exe processes and filter in JS to distinguish CLI from Desktop
         const psCommand = `
           Get-CimInstance Win32_Process | Where-Object {
-            $_.Name -match 'node|claude' -and $_.CommandLine -match 'claude|@anthropic-ai'
+            $_.Name -eq 'claude.exe'
           } | Select-Object ProcessId, Name, CommandLine, CreationDate | ConvertTo-Json -Compress
         `.replace(/\n\s*/g, ' ').trim();
 
@@ -468,10 +471,22 @@ export async function detectClaudeSessions(): Promise<ClaudeSession[]> {
               if (!proc || !proc.ProcessId) continue;
 
               const pid = proc.ProcessId;
-              const command = proc.CommandLine || proc.Name || 'Claude Code';
+              const command = proc.CommandLine || proc.Name || '';
 
-              // Skip if this looks like a helper/child process
+              // Skip Claude Desktop app processes (AnthropicClaude folder)
+              if (command.includes('AnthropicClaude') || command.includes('AppData\\Local\\AnthropicClaude')) {
+                continue;
+              }
+
+              // Skip helper/child processes
               if (command.includes('--type=') || command.includes('crashpad')) continue;
+
+              // This should be Claude Code CLI (.local\bin\claude.exe or similar)
+              const isClaudeCodeCli = command.includes('.local\\bin\\claude') ||
+                                      command.includes('.local/bin/claude') ||
+                                      (!command.includes('AnthropicClaude') && command.includes('claude'));
+
+              if (!isClaudeCodeCli) continue;
 
               sessions.push({
                 pid,
