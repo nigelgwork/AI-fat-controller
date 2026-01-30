@@ -271,3 +271,43 @@ export interface AppSettings {
     isMaximized: boolean;
   };
 }
+
+// Mayor (AI Project Manager) Types
+export type MayorStatus = 'idle' | 'running' | 'paused' | 'waiting_approval';
+
+export interface MayorState {
+  status: MayorStatus;
+  currentTaskId: string | null;
+  currentAction: string | null;
+  startedAt: string | null;
+  processedCount: number;
+  approvedCount: number;
+  rejectedCount: number;
+  errorCount: number;
+}
+
+export type ApprovalActionType = 'planning' | 'architecture' | 'git_push' | 'large_edit';
+
+export interface ApprovalRequest {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  actionType: ApprovalActionType;
+  description: string;
+  details: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
+
+export interface ActionLog {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  actionType: string;
+  description: string;
+  autoApproved: boolean;
+  result: 'success' | 'failure' | 'skipped';
+  output?: string;
+  duration: number;
+  timestamp: string;
+}

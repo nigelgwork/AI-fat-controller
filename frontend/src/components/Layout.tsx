@@ -8,12 +8,14 @@ import {
   CheckSquare,
   Settings,
   FolderGit,
+  Crown,
 } from 'lucide-react';
 import ModeToggle from './ModeToggle';
 import UpdateBanner from './UpdateBanner';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/mayor', icon: Crown, label: 'Mayor' },
   { to: '/terminal', icon: Terminal, label: 'Controller' },
   { to: '/projects', icon: FolderGit, label: 'Projects' },
   { to: '/sessions', icon: Monitor, label: 'Sessions' },

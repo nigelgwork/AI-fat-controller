@@ -1,4 +1,4 @@
-import type { Bead, AppSettings, ExecutionMode, Task, CreateTaskInput, UpdateTaskInput, TasksStats } from './gastown';
+import type { Bead, AppSettings, ExecutionMode, Task, CreateTaskInput, UpdateTaskInput, TasksStats, MayorState, ApprovalRequest, ActionLog } from './gastown';
 
 export interface ModeStatusResult {
   current: ExecutionMode;
@@ -170,6 +170,17 @@ interface ElectronAPI {
   getTasksStats: () => Promise<TasksStats>;
   sendTaskToClaude: (id: string) => Promise<ExecuteResult>;
 
+  // Mayor (AI Project Manager)
+  getMayorState: () => Promise<MayorState>;
+  activateMayor: () => Promise<void>;
+  deactivateMayor: () => Promise<void>;
+  pauseMayor: () => Promise<void>;
+  resumeMayor: () => Promise<void>;
+  getApprovalQueue: () => Promise<ApprovalRequest[]>;
+  approveRequest: (id: string) => Promise<void>;
+  rejectRequest: (id: string, reason?: string) => Promise<void>;
+  getActionLogs: (limit?: number) => Promise<ActionLog[]>;
+
   // Update event listeners
   onUpdateChecking: (callback: () => void) => () => void;
   onUpdateAvailable: (callback: (data: { version: string; releaseNotes?: string }) => void) => () => void;
@@ -180,6 +191,11 @@ interface ElectronAPI {
 
   // Mode event listeners
   onModeChanged: (callback: (mode: ExecutionMode) => void) => () => void;
+
+  // Mayor event listeners
+  onMayorStateChanged: (callback: (state: MayorState) => void) => () => void;
+  onApprovalRequired: (callback: (request: ApprovalRequest) => void) => () => void;
+  onActionCompleted: (callback: (log: ActionLog) => void) => () => void;
 }
 
 declare global {

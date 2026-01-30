@@ -35,6 +35,17 @@ import {
   CreateTaskInput,
   UpdateTaskInput,
 } from '../services/tasks';
+import {
+  getMayorState,
+  activateMayor,
+  deactivateMayor,
+  pauseMayor,
+  resumeMayor,
+  getApprovalQueue,
+  approveRequest,
+  rejectRequest,
+  getActionLogs,
+} from '../services/mayor';
 
 // System prompt for Claude Code
 function getSystemPrompt(): string {
@@ -259,5 +270,42 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
 
     // Run Claude Code with the task as the prompt
     return executor.runClaude(prompt, getSystemPrompt());
+  });
+
+  // Mayor handlers
+  ipcMain.handle('mayor:getState', () => {
+    return getMayorState();
+  });
+
+  ipcMain.handle('mayor:activate', async () => {
+    return activateMayor();
+  });
+
+  ipcMain.handle('mayor:deactivate', async () => {
+    return deactivateMayor();
+  });
+
+  ipcMain.handle('mayor:pause', async () => {
+    return pauseMayor();
+  });
+
+  ipcMain.handle('mayor:resume', async () => {
+    return resumeMayor();
+  });
+
+  ipcMain.handle('mayor:getApprovalQueue', () => {
+    return getApprovalQueue();
+  });
+
+  ipcMain.handle('mayor:approveRequest', async (_, id: string) => {
+    return approveRequest(id);
+  });
+
+  ipcMain.handle('mayor:rejectRequest', async (_, id: string, reason?: string) => {
+    return rejectRequest(id, reason);
+  });
+
+  ipcMain.handle('mayor:getActionLogs', (_, limit?: number) => {
+    return getActionLogs(limit);
   });
 }

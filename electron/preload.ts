@@ -154,6 +154,45 @@ export interface AppSettings {
   hasCompletedSetup: boolean;
 }
 
+// Mayor types
+export type MayorStatus = 'idle' | 'running' | 'paused' | 'waiting_approval';
+export type ApprovalActionType = 'planning' | 'architecture' | 'git_push' | 'large_edit';
+
+export interface MayorState {
+  status: MayorStatus;
+  currentTaskId: string | null;
+  currentAction: string | null;
+  startedAt: string | null;
+  processedCount: number;
+  approvedCount: number;
+  rejectedCount: number;
+  errorCount: number;
+}
+
+export interface ApprovalRequest {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  actionType: ApprovalActionType;
+  description: string;
+  details: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
+
+export interface ActionLog {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  actionType: string;
+  description: string;
+  autoApproved: boolean;
+  result: 'success' | 'failure' | 'skipped';
+  output?: string;
+  duration: number;
+  timestamp: string;
+}
+
 // Expose protected methods that allow the renderer process to use
 // ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -231,6 +270,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getTasksStats: (): Promise<TasksStats> => ipcRenderer.invoke('tasks:stats'),
   sendTaskToClaude: (id: string): Promise<ExecuteResult> => ipcRenderer.invoke('tasks:sendToClaude', id),
 
+  // Mayor (AI Project Manager)
+  getMayorState: (): Promise<MayorState> => ipcRenderer.invoke('mayor:getState'),
+  activateMayor: (): Promise<void> => ipcRenderer.invoke('mayor:activate'),
+  deactivateMayor: (): Promise<void> => ipcRenderer.invoke('mayor:deactivate'),
+  pauseMayor: (): Promise<void> => ipcRenderer.invoke('mayor:pause'),
+  resumeMayor: (): Promise<void> => ipcRenderer.invoke('mayor:resume'),
+  getApprovalQueue: (): Promise<ApprovalRequest[]> => ipcRenderer.invoke('mayor:getApprovalQueue'),
+  approveRequest: (id: string): Promise<void> => ipcRenderer.invoke('mayor:approveRequest', id),
+  rejectRequest: (id: string, reason?: string): Promise<void> => ipcRenderer.invoke('mayor:rejectRequest', id, reason),
+  getActionLogs: (limit?: number): Promise<ActionLog[]> => ipcRenderer.invoke('mayor:getActionLogs', limit),
+
   // Event listeners
   onUpdateChecking: (callback: () => void) => {
     const handler = () => callback();
@@ -266,6 +316,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const handler = (_: unknown, mode: 'windows' | 'wsl') => callback(mode);
     ipcRenderer.on('mode-changed', handler);
     return () => ipcRenderer.removeListener('mode-changed', handler);
+  },
+
+  // Mayor event listeners
+  onMayorStateChanged: (callback: (state: MayorState) => void) => {
+    const handler = (_: unknown, state: MayorState) => callback(state);
+    ipcRenderer.on('mayor:stateChanged', handler);
+    return () => ipcRenderer.removeListener('mayor:stateChanged', handler);
+  },
+  onApprovalRequired: (callback: (request: ApprovalRequest) => void) => {
+    const handler = (_: unknown, request: ApprovalRequest) => callback(request);
+    ipcRenderer.on('mayor:approvalRequired', handler);
+    return () => ipcRenderer.removeListener('mayor:approvalRequired', handler);
+  },
+  onActionCompleted: (callback: (log: ActionLog) => void) => {
+    const handler = (_: unknown, log: ActionLog) => callback(log);
+    ipcRenderer.on('mayor:actionCompleted', handler);
+    return () => ipcRenderer.removeListener('mayor:actionCompleted', handler);
   },
 });
 
@@ -330,6 +397,20 @@ declare global {
       deleteTask: (id: string) => Promise<boolean>;
       getTasksStats: () => Promise<TasksStats>;
       sendTaskToClaude: (id: string) => Promise<ExecuteResult>;
+      // Mayor (AI Project Manager)
+      getMayorState: () => Promise<MayorState>;
+      activateMayor: () => Promise<void>;
+      deactivateMayor: () => Promise<void>;
+      pauseMayor: () => Promise<void>;
+      resumeMayor: () => Promise<void>;
+      getApprovalQueue: () => Promise<ApprovalRequest[]>;
+      approveRequest: (id: string) => Promise<void>;
+      rejectRequest: (id: string, reason?: string) => Promise<void>;
+      getActionLogs: (limit?: number) => Promise<ActionLog[]>;
+      // Mayor event listeners
+      onMayorStateChanged: (callback: (state: MayorState) => void) => () => void;
+      onApprovalRequired: (callback: (request: ApprovalRequest) => void) => () => void;
+      onActionCompleted: (callback: (log: ActionLog) => void) => () => void;
     };
   }
 }

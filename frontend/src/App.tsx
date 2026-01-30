@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
+import Mayor from './pages/Mayor';
 import Terminal from './pages/Terminal';
 import Projects from './pages/Projects';
 import Sessions from './pages/Sessions';
@@ -41,6 +42,7 @@ function App() {
     <Routes>
       <Route path="/" element={<Layout />}>
         <Route index element={<Dashboard />} />
+        <Route path="mayor" element={<Mayor />} />
         <Route path="terminal" element={<Terminal />} />
         <Route path="projects" element={<Projects />} />
         <Route path="sessions" element={<Sessions />} />

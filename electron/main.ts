@@ -4,6 +4,7 @@ import { getExecutor } from './services/executor';
 import { settings, initSettings } from './services/settings';
 import { registerIpcHandlers } from './ipc/handlers';
 import { initAutoUpdater, checkForUpdates } from './services/auto-updater';
+import { initMayorStore } from './services/mayor';
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -153,6 +154,9 @@ if (!gotTheLock) {
   app.whenReady().then(async () => {
     // Initialize settings
     initSettings();
+
+    // Initialize Mayor store
+    initMayorStore();
 
     // Initialize executor based on settings
     await getExecutor();
