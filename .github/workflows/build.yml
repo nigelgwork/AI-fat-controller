@@ -43,8 +43,9 @@ jobs:
         run: |
           mkdir -p resources/bin
 
-          # Clone and build gt
-          git clone --depth 1 https://github.com/steveyegge/gastown.git .go-build-temp/gastown
+          # Clone and build gt (pinned to v0.5.0 for Windows compatibility)
+          # Note: gastown HEAD uses syscall.Kill which doesn't work on Windows
+          git clone --depth 1 --branch v0.5.0 https://github.com/steveyegge/gastown.git .go-build-temp/gastown
           cd .go-build-temp/gastown
           go build -o ../../resources/bin/gt.exe ./cmd/gt
           cd ../..
