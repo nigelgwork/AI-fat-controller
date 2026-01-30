@@ -324,6 +324,7 @@ function decodeProjectPath(encodedName: string): string {
   try {
     // The directory name is the path with / replaced by - and URL encoded
     // e.g., "-git-AI-fat-controller" -> "/git/AI-fat-controller"
+    // Windows: "C%3A-Users-name-project" -> "C:/Users/name/project"
     let decoded = encodedName;
 
     // First try URL decoding
@@ -333,7 +334,21 @@ function decodeProjectPath(encodedName: string): string {
       // Not URL encoded, use as-is
     }
 
-    // Replace leading dash with /
+    // Check if this looks like a Windows path (starts with drive letter)
+    // e.g., "C-Users-name" or after URL decode "C:-Users-name"
+    const windowsDriveMatch = decoded.match(/^([A-Za-z])[-:]/);
+    if (windowsDriveMatch) {
+      // Windows path: replace dashes with backslashes or forward slashes
+      // "C-Users-name-project" -> "C:/Users/name/project"
+      const driveLetter = windowsDriveMatch[1];
+      const rest = decoded.substring(windowsDriveMatch[0].length);
+      // Replace dashes that look like path separators
+      const pathPart = rest.replace(/-(?=[a-zA-Z])/g, '/');
+      decoded = `${driveLetter}:/${pathPart}`;
+      return decoded;
+    }
+
+    // Unix path: Replace leading dash with /
     if (decoded.startsWith('-')) {
       decoded = '/' + decoded.substring(1);
     }
@@ -442,15 +457,17 @@ export async function detectClaudeSessions(): Promise<ClaudeSession[]> {
     const recentSessions = allHistorySessions.filter(s => s.status === 'recent').slice(0, 10);
 
     // WINDOWS: Detect Claude Code CLI processes using PowerShell
-    // Note: We specifically look for Claude Code CLI (.local\bin\claude.exe)
-    // and exclude Claude Desktop app (AnthropicClaude\app-*)
+    // Note: We look for Claude Code CLI running as:
+    // 1. claude.exe (standalone binary)
+    // 2. node.exe running @anthropic-ai/claude-code
+    // And exclude Claude Desktop app (AnthropicClaude\app-*)
     if (process.platform === 'win32') {
       try {
-        // Use PowerShell to find claude processes
-        // We look for claude.exe processes and filter in JS to distinguish CLI from Desktop
+        // Use PowerShell to find claude and node processes
+        // Claude Code CLI can run as claude.exe or as node running the claude script
         const psCommand = `
           Get-CimInstance Win32_Process | Where-Object {
-            $_.Name -eq 'claude.exe'
+            $_.Name -eq 'claude.exe' -or ($_.Name -eq 'node.exe' -and $_.CommandLine -match 'claude|@anthropic-ai')
           } | Select-Object ProcessId, Name, CommandLine, CreationDate | ConvertTo-Json -Compress
         `.replace(/\n\s*/g, ' ').trim();
 
@@ -478,13 +495,16 @@ export async function detectClaudeSessions(): Promise<ClaudeSession[]> {
                 continue;
               }
 
-              // Skip helper/child processes
+              // Skip helper/child processes (Electron internals)
               if (command.includes('--type=') || command.includes('crashpad')) continue;
 
-              // This should be Claude Code CLI (.local\bin\claude.exe or similar)
+              // Verify this is Claude Code CLI
               const isClaudeCodeCli = command.includes('.local\\bin\\claude') ||
                                       command.includes('.local/bin/claude') ||
-                                      (!command.includes('AnthropicClaude') && command.includes('claude'));
+                                      command.includes('@anthropic-ai/claude-code') ||
+                                      command.includes('@anthropic-ai\\claude-code') ||
+                                      command.includes('npx') && command.includes('claude') ||
+                                      (!command.includes('AnthropicClaude') && command.toLowerCase().includes('claude'));
 
               if (!isClaudeCodeCli) continue;
 

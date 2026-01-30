@@ -161,7 +161,9 @@ export default function Agents() {
                 <div key={pluginName} className="bg-slate-800 rounded-lg border border-slate-700">
                   <div className="p-3 border-b border-slate-700 flex items-center gap-2">
                     <Package size={14} className="text-slate-400" />
-                    <span className="text-sm font-medium text-slate-300">{pluginName}</span>
+                    <span className="text-sm font-medium text-slate-300">
+                      {pluginName.includes('WSL') ? pluginName : `Windows - ${pluginName}`}
+                    </span>
                     <span className="text-xs text-slate-500">({pluginAgents.length})</span>
                     {pluginName === 'custom-agents' && (
                       <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded ml-auto">

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { CheckSquare, Boxes, RefreshCw, FolderGit, Monitor } from 'lucide-react';
+import { CheckSquare, RefreshCw, FolderGit, Monitor } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { TasksStats } from '../types/gastown';
 
@@ -46,7 +46,7 @@ export default function Dashboard() {
       <h2 className="text-2xl font-bold text-white">Town Overview</h2>
 
       {/* Status Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link to="/projects">
           <StatCard
             icon={FolderGit}
@@ -72,14 +72,6 @@ export default function Dashboard() {
             value={taskStats?.total || 0}
             color="text-purple-400"
             subtitle={taskStats?.inProgress ? `${taskStats.inProgress} in progress` : undefined}
-          />
-        </Link>
-        <Link to="/convoys">
-          <StatCard
-            icon={Boxes}
-            label="Convoys"
-            value="-"
-            color="text-orange-400"
           />
         </Link>
       </div>

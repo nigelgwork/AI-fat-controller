@@ -6,7 +6,6 @@ import {
   Monitor,
   Bot,
   CheckSquare,
-  Boxes,
   Settings,
   FolderGit,
 } from 'lucide-react';
@@ -20,7 +19,6 @@ const navItems = [
   { to: '/sessions', icon: Monitor, label: 'Sessions' },
   { to: '/agents', icon: Bot, label: 'Agents' },
   { to: '/tasks', icon: CheckSquare, label: 'Tasks' },
-  { to: '/convoys', icon: Boxes, label: 'Convoys' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 

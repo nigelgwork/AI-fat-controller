@@ -7,7 +7,6 @@ import Projects from './pages/Projects';
 import Sessions from './pages/Sessions';
 import Agents from './pages/Agents';
 import Tasks from './pages/Tasks';
-import Convoys from './pages/Convoys';
 import Settings from './pages/Settings';
 import Setup from './pages/Setup';
 
@@ -47,7 +46,6 @@ function App() {
         <Route path="sessions" element={<Sessions />} />
         <Route path="agents" element={<Agents />} />
         <Route path="tasks" element={<Tasks />} />
-        <Route path="convoys" element={<Convoys />} />
         <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>
