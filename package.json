@@ -19,11 +19,13 @@
   },
   "dependencies": {
     "electron-store": "^8.2.0",
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.3.9",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@tanstack/react-query": "^5.90.16",
     "@types/node": "^20.17.12",
+    "@types/ws": "^8.5.13",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",

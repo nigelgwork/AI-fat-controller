@@ -1,4 +1,4 @@
-import type { Bead, AppSettings, ExecutionMode, Task, CreateTaskInput, UpdateTaskInput, TasksStats, ControllerState, ControllerPhase, ProgressState, TokenUsage, UsageLimitConfig, UsageLimitStatus, ApprovalRequest, ActionLog, ConversationEntry, ConversationSession, NtfyConfig, PendingQuestion, ProjectBrief, DeepDivePlan, NewProjectSpec, CaptureOptions, ScreenshotResult, ScreenAnalysis, UIVerificationResult } from './gastown';
+import type { Bead, AppSettings, ExecutionMode, Task, CreateTaskInput, UpdateTaskInput, TasksStats, ControllerState, ControllerPhase, ProgressState, TokenUsage, UsageLimitConfig, UsageLimitStatus, ApprovalRequest, ActionLog, ConversationEntry, ConversationSession, NtfyConfig, PendingQuestion, ProjectBrief, DeepDivePlan, NewProjectSpec, CaptureOptions, ScreenshotResult, ScreenAnalysis, UIVerificationResult, TestScenario, TestStep, TestResult, MCPServerConfig, MCPTool, TestExecutionConfig } from './gastown';
 
 export interface ModeStatusResult {
   current: ExecutionMode;
@@ -267,6 +267,36 @@ interface ElectronAPI {
   listScreenshots: () => Promise<string[]>;
   deleteScreenshot: (filePath: string) => Promise<boolean>;
   getLatestScreenshot: () => Promise<string | null>;
+
+  // GUI Testing
+  runGuiTest: (scenarioId: string) => Promise<TestResult>;
+  createGuiTest: (scenario: Omit<TestScenario, 'id' | 'createdAt' | 'updatedAt'>) => Promise<TestScenario>;
+  getGuiTest: (id: string) => Promise<TestScenario | null>;
+  updateGuiTest: (id: string, updates: Partial<TestScenario>) => Promise<TestScenario | null>;
+  deleteGuiTest: (id: string) => Promise<boolean>;
+  listGuiTests: () => Promise<TestScenario[]>;
+  getGuiTestResults: (scenarioId: string, limit?: number) => Promise<TestResult[]>;
+  generateGuiTest: (description: string, appName?: string) => Promise<TestScenario>;
+
+  // GUI Test event listeners
+  onGuiTestProgress: (callback: (data: { scenarioId: string; stepIndex: number; totalSteps: number; status: string }) => void) => () => void;
+  onGuiTestComplete: (callback: (result: TestResult) => void) => () => void;
+
+  // GUI Test with execution config
+  runGuiTestWithConfig: (scenarioId: string, config?: Partial<TestExecutionConfig>) => Promise<TestResult>;
+
+  // MCP Server Management
+  getMcpConfigs: () => Promise<MCPServerConfig[]>;
+  getMcpDefaultConfigs: () => Promise<MCPServerConfig[]>;
+  addMcpConfig: (config: MCPServerConfig) => Promise<MCPServerConfig[]>;
+  removeMcpConfig: (name: string) => Promise<MCPServerConfig[]>;
+  connectMcpServer: (name: string) => Promise<{ connected: boolean; tools: MCPTool[] }>;
+  disconnectMcpServer: (name: string) => Promise<boolean>;
+  disconnectAllMcpServers: () => Promise<boolean>;
+  getConnectedMcpServers: () => Promise<string[]>;
+  getMcpServerTools: (name: string) => Promise<MCPTool[]>;
+  callMcpTool: (serverName: string, toolName: string, args: Record<string, unknown>) => Promise<unknown>;
+  autoConnectMcpServers: () => Promise<string[]>;
 }
 
 declare global {

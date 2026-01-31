@@ -304,6 +304,34 @@ export interface UIVerificationResult {
   error?: string;
 }
 
+// MCP Server types
+export interface MCPServerConfig {
+  name: string;
+  transport: 'stdio' | 'websocket';
+  command?: string;
+  args?: string[];
+  cwd?: string;
+  env?: Record<string, string>;
+  url?: string;
+  enabled: boolean;
+  autoConnect: boolean;
+}
+
+export interface MCPTool {
+  name: string;
+  description: string;
+  inputSchema: {
+    type: 'object';
+    properties: Record<string, {
+      type: string;
+      description?: string;
+      enum?: string[];
+      default?: unknown;
+    }>;
+    required?: string[];
+  };
+}
+
 // Expose protected methods that allow the renderer process to use
 // ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -484,6 +512,56 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getLatestScreenshot: (): Promise<string | null> =>
     ipcRenderer.invoke('screenshot:getLatest'),
 
+  // GUI Testing
+  runGuiTest: (scenarioId: string): Promise<unknown> =>
+    ipcRenderer.invoke('gui-test:run', scenarioId),
+  createGuiTest: (scenario: { name: string; description: string; application?: string; steps: unknown[] }): Promise<unknown> =>
+    ipcRenderer.invoke('gui-test:create', scenario),
+  getGuiTest: (id: string): Promise<unknown> =>
+    ipcRenderer.invoke('gui-test:get', id),
+  updateGuiTest: (id: string, updates: Record<string, unknown>): Promise<unknown> =>
+    ipcRenderer.invoke('gui-test:update', id, updates),
+  deleteGuiTest: (id: string): Promise<boolean> =>
+    ipcRenderer.invoke('gui-test:delete', id),
+  listGuiTests: (): Promise<unknown[]> =>
+    ipcRenderer.invoke('gui-test:list'),
+  getGuiTestResults: (scenarioId: string, limit?: number): Promise<unknown[]> =>
+    ipcRenderer.invoke('gui-test:results', scenarioId, limit),
+  generateGuiTest: (description: string, appName?: string): Promise<unknown> =>
+    ipcRenderer.invoke('gui-test:generate', description, appName),
+  runGuiTestWithConfig: (scenarioId: string, config?: {
+    mode?: 'mcp-direct' | 'claude-assisted' | 'hybrid';
+    mcpServerName?: string;
+    takeScreenshotsAfterSteps?: boolean;
+    stopOnFirstFailure?: boolean;
+    stepTimeout?: number;
+  }): Promise<unknown> =>
+    ipcRenderer.invoke('gui-test:runWithConfig', scenarioId, config),
+
+  // MCP Server Management
+  getMcpConfigs: (): Promise<MCPServerConfig[]> =>
+    ipcRenderer.invoke('mcp:getConfigs'),
+  getMcpDefaultConfigs: (): Promise<MCPServerConfig[]> =>
+    ipcRenderer.invoke('mcp:getDefaultConfigs'),
+  addMcpConfig: (config: MCPServerConfig): Promise<MCPServerConfig[]> =>
+    ipcRenderer.invoke('mcp:addConfig', config),
+  removeMcpConfig: (name: string): Promise<MCPServerConfig[]> =>
+    ipcRenderer.invoke('mcp:removeConfig', name),
+  connectMcpServer: (name: string): Promise<{ connected: boolean; tools: MCPTool[] }> =>
+    ipcRenderer.invoke('mcp:connect', name),
+  disconnectMcpServer: (name: string): Promise<boolean> =>
+    ipcRenderer.invoke('mcp:disconnect', name),
+  disconnectAllMcpServers: (): Promise<boolean> =>
+    ipcRenderer.invoke('mcp:disconnectAll'),
+  getConnectedMcpServers: (): Promise<string[]> =>
+    ipcRenderer.invoke('mcp:getConnectedServers'),
+  getMcpServerTools: (name: string): Promise<MCPTool[]> =>
+    ipcRenderer.invoke('mcp:getServerTools', name),
+  callMcpTool: (serverName: string, toolName: string, args: Record<string, unknown>): Promise<unknown> =>
+    ipcRenderer.invoke('mcp:callTool', serverName, toolName, args),
+  autoConnectMcpServers: (): Promise<string[]> =>
+    ipcRenderer.invoke('mcp:autoConnect'),
+
   // Event listeners
   onUpdateChecking: (callback: () => void) => {
     const handler = () => callback();
@@ -547,6 +625,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const handler = (_: unknown, data: { status: UsageLimitStatus; percentage: number }) => callback(data);
     ipcRenderer.on('controller:usageWarning', handler);
     return () => ipcRenderer.removeListener('controller:usageWarning', handler);
+  },
+
+  // GUI Test event listeners
+  onGuiTestProgress: (callback: (data: { scenarioId: string; stepIndex: number; totalSteps: number; status: string }) => void) => {
+    const handler = (_: unknown, data: { scenarioId: string; stepIndex: number; totalSteps: number; status: string }) => callback(data);
+    ipcRenderer.on('gui-test:progress', handler);
+    return () => ipcRenderer.removeListener('gui-test:progress', handler);
+  },
+
+  onGuiTestComplete: (callback: (result: unknown) => void) => {
+    const handler = (_: unknown, result: unknown) => callback(result);
+    ipcRenderer.on('gui-test:complete', handler);
+    return () => ipcRenderer.removeListener('gui-test:complete', handler);
   },
 
   // Backwards compatibility: Mayor event listeners
@@ -701,6 +792,18 @@ declare global {
       onActionCompleted: (callback: (log: ActionLog) => void) => () => void;
       onProgressUpdated: (callback: (progress: ProgressState | null) => void) => () => void;
       onUsageWarning: (callback: (data: { status: UsageLimitStatus; percentage: number }) => void) => () => void;
+      // GUI Test event listeners
+      onGuiTestProgress: (callback: (data: { scenarioId: string; stepIndex: number; totalSteps: number; status: string }) => void) => () => void;
+      onGuiTestComplete: (callback: (result: unknown) => void) => () => void;
+      // GUI Testing APIs
+      runGuiTest: (scenarioId: string) => Promise<unknown>;
+      createGuiTest: (scenario: { name: string; description: string; application?: string; steps: unknown[] }) => Promise<unknown>;
+      getGuiTest: (id: string) => Promise<unknown>;
+      updateGuiTest: (id: string, updates: Record<string, unknown>) => Promise<unknown>;
+      deleteGuiTest: (id: string) => Promise<boolean>;
+      listGuiTests: () => Promise<unknown[]>;
+      getGuiTestResults: (scenarioId: string, limit?: number) => Promise<unknown[]>;
+      generateGuiTest: (description: string, appName?: string) => Promise<unknown>;
       // Backwards compatibility: Mayor event listeners
       onMayorStateChanged: (callback: (state: ControllerState) => void) => () => void;
       // ntfy event listeners

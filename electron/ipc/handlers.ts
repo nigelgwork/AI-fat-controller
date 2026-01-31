@@ -101,6 +101,24 @@ import {
   getLatestScreenshot,
   CaptureOptions,
 } from '../services/screenshot';
+import {
+  runTestScenario,
+  createTestScenario,
+  getTestScenario,
+  updateTestScenario,
+  deleteTestScenario,
+  listTestScenarios,
+  getTestResults,
+  generateTestScenario,
+  TestScenario,
+  TestStep,
+  TestExecutionConfig,
+} from '../services/gui-testing';
+import {
+  getMCPManager,
+  MCPServerConfig,
+  DEFAULT_MCP_CONFIGS,
+} from '../services/mcp-client';
 
 // System prompt for Claude Code
 function getSystemPrompt(): string {
@@ -577,5 +595,123 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
 
   ipcMain.handle('screenshot:getLatest', () => {
     return getLatestScreenshot();
+  });
+
+  // GUI Testing handlers
+  ipcMain.handle('gui-test:run', async (_, scenarioId: string) => {
+    const scenario = getTestScenario(scenarioId);
+    if (!scenario) {
+      throw new Error(`Test scenario not found: ${scenarioId}`);
+    }
+    return runTestScenario(scenario);
+  });
+
+  ipcMain.handle('gui-test:create', (_, scenario: Omit<TestScenario, 'id' | 'createdAt' | 'updatedAt'>) => {
+    return createTestScenario(scenario);
+  });
+
+  ipcMain.handle('gui-test:get', (_, id: string) => {
+    return getTestScenario(id);
+  });
+
+  ipcMain.handle('gui-test:update', (_, id: string, updates: Partial<TestScenario>) => {
+    return updateTestScenario(id, updates);
+  });
+
+  ipcMain.handle('gui-test:delete', (_, id: string) => {
+    return deleteTestScenario(id);
+  });
+
+  ipcMain.handle('gui-test:list', () => {
+    return listTestScenarios();
+  });
+
+  ipcMain.handle('gui-test:results', (_, scenarioId: string, limit?: number) => {
+    return getTestResults(scenarioId, limit);
+  });
+
+  ipcMain.handle('gui-test:generate', async (_, description: string, appName?: string) => {
+    return generateTestScenario(description, appName);
+  });
+
+  // Update gui-test:run to accept execution config
+  ipcMain.handle('gui-test:runWithConfig', async (_, scenarioId: string, config?: Partial<TestExecutionConfig>) => {
+    const scenario = getTestScenario(scenarioId);
+    if (!scenario) {
+      throw new Error(`Test scenario not found: ${scenarioId}`);
+    }
+    return runTestScenario(scenario, config);
+  });
+
+  // MCP Server Management handlers
+  ipcMain.handle('mcp:getConfigs', () => {
+    const manager = getMCPManager();
+    return manager.getConfigs();
+  });
+
+  ipcMain.handle('mcp:getDefaultConfigs', () => {
+    return DEFAULT_MCP_CONFIGS;
+  });
+
+  ipcMain.handle('mcp:addConfig', (_, config: MCPServerConfig) => {
+    const manager = getMCPManager();
+    manager.addConfig(config);
+    return manager.getConfigs();
+  });
+
+  ipcMain.handle('mcp:removeConfig', async (_, name: string) => {
+    const manager = getMCPManager();
+    manager.removeConfig(name);
+    return manager.getConfigs();
+  });
+
+  ipcMain.handle('mcp:connect', async (_, name: string) => {
+    const manager = getMCPManager();
+    await manager.connect(name);
+    const server = manager.getServer(name);
+    return {
+      connected: server?.isConnected() || false,
+      tools: server?.getAvailableTools() || [],
+    };
+  });
+
+  ipcMain.handle('mcp:disconnect', async (_, name: string) => {
+    const manager = getMCPManager();
+    await manager.disconnect(name);
+    return true;
+  });
+
+  ipcMain.handle('mcp:disconnectAll', async () => {
+    const manager = getMCPManager();
+    await manager.disconnectAll();
+    return true;
+  });
+
+  ipcMain.handle('mcp:getConnectedServers', () => {
+    const manager = getMCPManager();
+    return manager.getConnectedServers();
+  });
+
+  ipcMain.handle('mcp:getServerTools', (_, name: string) => {
+    const manager = getMCPManager();
+    const server = manager.getServer(name);
+    return server?.getAvailableTools() || [];
+  });
+
+  ipcMain.handle('mcp:callTool', async (_, serverName: string, toolName: string, args: Record<string, unknown>) => {
+    const manager = getMCPManager();
+    const server = manager.getServer(serverName);
+    if (!server?.isConnected()) {
+      throw new Error(`MCP server not connected: ${serverName}`);
+    }
+    // Access the underlying client to call tools
+    return (server as unknown as { client: { callTool: (name: string, args: Record<string, unknown>) => Promise<unknown> } }).client.callTool(toolName, args);
+  });
+
+  // Auto-connect enabled MCP servers on startup
+  ipcMain.handle('mcp:autoConnect', async () => {
+    const manager = getMCPManager();
+    await manager.autoConnectEnabled();
+    return manager.getConnectedServers();
   });
 }

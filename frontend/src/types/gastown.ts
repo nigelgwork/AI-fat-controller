@@ -472,6 +472,110 @@ export interface UIVerificationResult {
   error?: string;
 }
 
+// GUI Testing Types
+export type TestActionType =
+  | 'click'
+  | 'type'
+  | 'scroll'
+  | 'shortcut'
+  | 'wait'
+  | 'app'
+  | 'shell'
+  | 'snapshot'
+  | 'verify'
+  | 'custom';
+
+export interface TestStep {
+  id: string;
+  action: TestActionType;
+  description: string;
+  params: Record<string, unknown>;
+  assertion?: {
+    type: 'contains' | 'visible' | 'not_visible' | 'matches' | 'custom';
+    target: string;
+    timeout?: number;
+  };
+}
+
+export interface TestScenario {
+  id: string;
+  name: string;
+  description: string;
+  application?: string;
+  steps: TestStep[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StepResult {
+  stepId: string;
+  status: 'passed' | 'failed' | 'skipped' | 'error';
+  duration: number;
+  screenshot?: string;
+  output?: string;
+  error?: string;
+  assertion?: {
+    expected: string;
+    actual: string;
+    passed: boolean;
+  };
+}
+
+export interface TestResult {
+  scenarioId: string;
+  scenarioName: string;
+  status: 'passed' | 'failed' | 'error';
+  startedAt: string;
+  completedAt: string;
+  duration: number;
+  stepResults: StepResult[];
+  summary: {
+    total: number;
+    passed: number;
+    failed: number;
+    skipped: number;
+  };
+}
+
+// MCP Server Types
+export interface MCPServerConfig {
+  name: string;
+  transport: 'stdio' | 'websocket';
+  command?: string;
+  args?: string[];
+  cwd?: string;
+  env?: Record<string, string>;
+  url?: string;
+  enabled: boolean;
+  autoConnect: boolean;
+}
+
+export interface MCPTool {
+  name: string;
+  description: string;
+  inputSchema: {
+    type: 'object';
+    properties: Record<string, {
+      type: string;
+      description?: string;
+      enum?: string[];
+      default?: unknown;
+    }>;
+    required?: string[];
+  };
+}
+
+// Test execution configuration
+export type TestExecutionMode = 'mcp-direct' | 'claude-assisted' | 'hybrid';
+
+export interface TestExecutionConfig {
+  mode: TestExecutionMode;
+  mcpServerName?: string;
+  takeScreenshotsAfterSteps: boolean;
+  stopOnFirstFailure: boolean;
+  stepTimeout: number;
+}
+
 // Backwards compatibility aliases
 export type MayorStatus = ControllerStatus;
 export type MayorState = ControllerState;
