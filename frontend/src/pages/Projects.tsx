@@ -602,9 +602,15 @@ function DeepDivePlanView({ plan, onRegenerate, isRegenerating }: { plan: DeepDi
     switch (task.status) {
       case 'completed':
         return (
-          <div className="w-5 h-5 rounded bg-green-500 flex items-center justify-center">
-            <Check size={12} className="text-white" />
-          </div>
+          <button
+            onClick={() => updateMutation.mutate({ taskId: task.id, status: 'pending' })}
+            disabled={updateMutation.isPending}
+            className="w-5 h-5 rounded bg-green-500 flex items-center justify-center hover:bg-green-600 transition-colors group relative"
+            title="Click to reset and re-run this task"
+          >
+            <Check size={12} className="text-white group-hover:hidden" />
+            <RefreshCw size={10} className="text-white hidden group-hover:block" />
+          </button>
         );
       case 'failed':
         return (
@@ -618,13 +624,19 @@ function DeepDivePlanView({ plan, onRegenerate, isRegenerating }: { plan: DeepDi
           </button>
         );
       case 'in_progress':
+        // If no execution is currently running, this task is stuck - allow reset
         return (
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded border border-cyan-500 bg-cyan-500/20 flex items-center justify-center">
-              <Loader2 size={12} className="text-cyan-400 animate-spin" />
+          <button
+            onClick={() => updateMutation.mutate({ taskId: task.id, status: 'pending' })}
+            disabled={updateMutation.isPending}
+            className="flex items-center gap-2 group"
+            title="Task appears stuck - click to reset"
+          >
+            <div className="w-5 h-5 rounded border border-yellow-500 bg-yellow-500/20 flex items-center justify-center group-hover:bg-yellow-500/40 transition-colors">
+              <RefreshCw size={10} className="text-yellow-400" />
             </div>
-            <span className="text-xs text-slate-400">Running...</span>
-          </div>
+            <span className="text-xs text-yellow-400">Stuck - click to reset</span>
+          </button>
         );
       default: // pending
         return (
@@ -712,6 +724,25 @@ function DeepDivePlanView({ plan, onRegenerate, isRegenerating }: { plan: DeepDi
           }`}>
             {plan.status}
           </span>
+          {plan.completedTasks > 0 && (
+            <button
+              onClick={() => {
+                // Reset all non-pending tasks back to pending
+                plan.phases.forEach(phase => {
+                  phase.tasks.forEach(task => {
+                    if (task.status !== 'pending') {
+                      updateMutation.mutate({ taskId: task.id, status: 'pending' });
+                    }
+                  });
+                });
+              }}
+              disabled={updateMutation.isPending}
+              className="px-2 py-0.5 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors"
+              title="Reset all tasks to pending"
+            >
+              Reset All
+            </button>
+          )}
           <button
             onClick={onRegenerate}
             disabled={isRegenerating}
