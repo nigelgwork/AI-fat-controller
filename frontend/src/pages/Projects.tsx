@@ -20,8 +20,9 @@ import {
   AlertCircle,
   Play,
   Eye,
+  Square,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import CollapsibleHelp from '../components/CollapsibleHelp';
 import type { ProjectBrief, DeepDivePlan, DeepDiveTask } from '../types/gastown';
@@ -491,6 +492,33 @@ function DeepDivePlanView({ plan, onRegenerate, isRegenerating }: { plan: DeepDi
   const [executingTaskId, setExecutingTaskId] = useState<string | null>(null);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [approvalPending, setApprovalPending] = useState<{ taskId: string; reason: string; output: string } | null>(null);
+  const [elapsedTime, setElapsedTime] = useState<number>(0);
+  const startTimeRef = useRef<number | null>(null);
+
+  // Timer for elapsed time
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (executingTaskId) {
+      if (!startTimeRef.current) {
+        startTimeRef.current = Date.now();
+      }
+      interval = setInterval(() => {
+        setElapsedTime(Math.floor((Date.now() - (startTimeRef.current || Date.now())) / 1000));
+      }, 1000);
+    } else {
+      startTimeRef.current = null;
+      setElapsedTime(0);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [executingTaskId]);
+
+  const formatElapsedTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  };
 
   const executeMutation = useMutation({
     mutationFn: async ({ taskId }: { taskId: string }) => {
@@ -510,6 +538,16 @@ function DeepDivePlanView({ plan, onRegenerate, isRegenerating }: { plan: DeepDi
       queryClient.invalidateQueries({ queryKey: ['deep-dive', plan.projectId] });
     },
     onError: () => {
+      setExecutingTaskId(null);
+      queryClient.invalidateQueries({ queryKey: ['deep-dive', plan.projectId] });
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: async ({ taskId }: { taskId: string }) => {
+      return window.electronAPI!.cancelDeepDiveTask(plan.projectId, taskId);
+    },
+    onSuccess: () => {
       setExecutingTaskId(null);
       queryClient.invalidateQueries({ queryKey: ['deep-dive', plan.projectId] });
     },
@@ -544,8 +582,19 @@ function DeepDivePlanView({ plan, onRegenerate, isRegenerating }: { plan: DeepDi
 
     if (isExecuting) {
       return (
-        <div className="w-5 h-5 rounded border border-cyan-500 bg-cyan-500/20 flex items-center justify-center">
-          <Loader2 size={12} className="text-cyan-400 animate-spin" />
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded border border-cyan-500 bg-cyan-500/20 flex items-center justify-center">
+            <Loader2 size={12} className="text-cyan-400 animate-spin" />
+          </div>
+          <span className="text-xs text-cyan-400 font-mono">{formatElapsedTime(elapsedTime)}</span>
+          <button
+            onClick={() => cancelMutation.mutate({ taskId: task.id })}
+            disabled={cancelMutation.isPending}
+            className="w-5 h-5 rounded bg-red-500/20 border border-red-500 hover:bg-red-500/40 flex items-center justify-center transition-colors"
+            title="Cancel execution"
+          >
+            <Square size={10} className="text-red-400" />
+          </button>
         </div>
       );
     }
@@ -570,8 +619,11 @@ function DeepDivePlanView({ plan, onRegenerate, isRegenerating }: { plan: DeepDi
         );
       case 'in_progress':
         return (
-          <div className="w-5 h-5 rounded border border-cyan-500 bg-cyan-500/20 flex items-center justify-center">
-            <Loader2 size={12} className="text-cyan-400 animate-spin" />
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded border border-cyan-500 bg-cyan-500/20 flex items-center justify-center">
+              <Loader2 size={12} className="text-cyan-400 animate-spin" />
+            </div>
+            <span className="text-xs text-slate-400">Running...</span>
           </div>
         );
       default: // pending
@@ -616,6 +668,34 @@ function DeepDivePlanView({ plan, onRegenerate, isRegenerating }: { plan: DeepDi
                   Reject
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Execution Status Banner */}
+      {executingTaskId && (
+        <div className="p-3 bg-cyan-500/10 border border-cyan-500/50 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Loader2 size={16} className="text-cyan-400 animate-spin" />
+              <div>
+                <span className="text-sm text-cyan-400 font-medium">Executing task...</span>
+                <span className="text-xs text-slate-400 ml-2">
+                  {plan.phases.flatMap(p => p.tasks).find(t => t.id === executingTaskId)?.title}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-cyan-400 font-mono">{formatElapsedTime(elapsedTime)}</span>
+              <button
+                onClick={() => cancelMutation.mutate({ taskId: executingTaskId })}
+                disabled={cancelMutation.isPending}
+                className="px-2 py-1 bg-red-500/20 border border-red-500 hover:bg-red-500/40 rounded text-xs text-red-400 transition-colors flex items-center gap-1"
+              >
+                <Square size={10} />
+                Cancel
+              </button>
             </div>
           </div>
         </div>

@@ -537,6 +537,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('deepdive:delete', projectId),
   executeDeepDiveTask: (projectId: string, taskId: string): Promise<{ success: boolean; output?: string; error?: string; requiresApproval?: boolean; approvalReason?: string }> =>
     ipcRenderer.invoke('deepdive:executeTask', projectId, taskId),
+  cancelDeepDiveTask: (projectId: string, taskId: string): Promise<{ cancelled: boolean }> =>
+    ipcRenderer.invoke('deepdive:cancelTask', projectId, taskId),
 
   // New Project
   scaffoldNewProject: (targetPath: string, spec: { name: string; description: string; type: string; techStack: string[]; features: string[] }): Promise<{ success: boolean; error?: string }> =>

@@ -745,8 +745,11 @@ Your job is to complete the given task efficiently and report what was accomplis
 If the task requires clarification or cannot be completed, explain why.
 Focus on the specific task - don't go beyond its scope.`;
 
+    // Generate execution ID for tracking/cancellation
+    const executionId = `deepdive-${projectId}-${taskId}`;
+
     // Execute with Claude
-    const result = await executor.runClaude(prompt, systemPrompt, brief?.projectPath);
+    const result = await executor.runClaude(prompt, systemPrompt, brief?.projectPath, undefined, executionId);
 
     if (!result.success) {
       // Update task as failed

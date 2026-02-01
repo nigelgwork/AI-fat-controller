@@ -644,6 +644,23 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
     return executeDeepDiveTask(projectId, taskId);
   });
 
+  ipcMain.handle('deepdive:cancelTask', async (_, projectId: string, taskId: string) => {
+    const { cancelExecution } = await import('../services/executor');
+    const executionId = `deepdive-${projectId}-${taskId}`;
+    const cancelled = cancelExecution(executionId);
+    if (cancelled) {
+      // Update task status back to pending
+      const { updateDeepDivePlan } = await import('../services/project-briefs');
+      updateDeepDivePlan(projectId, {
+        taskUpdates: [{
+          taskId,
+          status: 'pending',
+        }],
+      });
+    }
+    return { cancelled };
+  });
+
   // New Project handlers
   ipcMain.handle('project:scaffold', async (_, targetPath: string, spec: NewProjectSpec) => {
     return scaffoldNewProject(targetPath, spec);

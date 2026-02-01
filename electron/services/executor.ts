@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, ChildProcess } from 'child_process';
 import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
@@ -7,6 +7,24 @@ import { promisify } from 'util';
 import { settings } from './settings';
 
 const execAsync = promisify(exec);
+
+// Track running processes for cancellation
+const runningProcesses = new Map<string, ChildProcess>();
+
+export function cancelExecution(executionId: string): boolean {
+  const process = runningProcesses.get(executionId);
+  if (process) {
+    console.log('[Executor] Cancelling execution:', executionId);
+    process.kill('SIGTERM');
+    runningProcesses.delete(executionId);
+    return true;
+  }
+  return false;
+}
+
+export function getRunningExecutions(): string[] {
+  return Array.from(runningProcesses.keys());
+}
 
 // Ensure a directory exists
 function ensureDir(dirPath: string): void {
@@ -52,7 +70,7 @@ export interface ModeStatus {
 // Abstract executor interface
 interface IExecutor {
   initialize(): Promise<void>;
-  runClaude(message: string, systemPrompt?: string, projectPath?: string, imagePaths?: string[]): Promise<ExecuteResult>;
+  runClaude(message: string, systemPrompt?: string, projectPath?: string, imagePaths?: string[], executionId?: string): Promise<ExecuteResult>;
   runGt(args: string[]): Promise<ExecuteResult>;
   runBd(args: string[]): Promise<ExecuteResult>;
 }
@@ -99,7 +117,7 @@ class WindowsExecutor implements IExecutor {
     }
   }
 
-  async runClaude(message: string, systemPrompt?: string, projectPath?: string, imagePaths?: string[]): Promise<ExecuteResult> {
+  async runClaude(message: string, systemPrompt?: string, projectPath?: string, imagePaths?: string[], executionId?: string): Promise<ExecuteResult> {
     const start = Date.now();
 
     if (!this.claudePath) {
@@ -131,7 +149,7 @@ class WindowsExecutor implements IExecutor {
     const cwd = projectPath || this.gastownPath;
 
     // Pass message via stdin to avoid shell escaping issues
-    return this.spawnWithStdin(this.claudePath, args, message, cwd, start);
+    return this.spawnWithStdin(this.claudePath, args, message, cwd, start, 120000, executionId);
   }
 
   private spawnWithStdin(
@@ -140,13 +158,15 @@ class WindowsExecutor implements IExecutor {
     stdinData: string,
     cwd: string,
     start: number,
-    timeout = 120000
+    timeout = 120000,
+    executionId?: string
   ): Promise<ExecuteResult> {
     return new Promise((resolve) => {
       const validCwd = getValidCwd(cwd);
 
       console.log('[Executor] Running Claude with stdin in:', validCwd);
       console.log('[Executor] Args:', args);
+      if (executionId) console.log('[Executor] Execution ID:', executionId);
 
       const child = spawn(cmd, args, {
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -156,8 +176,14 @@ class WindowsExecutor implements IExecutor {
         shell: true,  // Needed on Windows to find .cmd files
       });
 
+      // Track the process for cancellation
+      if (executionId) {
+        runningProcesses.set(executionId, child);
+      }
+
       let stdout = '';
       let stderr = '';
+      let wasCancelled = false;
 
       child.stdout?.on('data', (data) => { stdout += data; });
       child.stderr?.on('data', (data) => { stderr += data; });
@@ -170,6 +196,7 @@ class WindowsExecutor implements IExecutor {
 
       const timer = setTimeout(() => {
         child.kill();
+        if (executionId) runningProcesses.delete(executionId);
         resolve({
           success: false,
           error: `Timeout after ${timeout / 1000} seconds`,
@@ -177,15 +204,27 @@ class WindowsExecutor implements IExecutor {
         });
       }, timeout);
 
-      child.on('close', (code) => {
+      child.on('close', (code, signal) => {
         clearTimeout(timer);
+        if (executionId) runningProcesses.delete(executionId);
         const duration = Date.now() - start;
 
-        console.log('[Executor] Claude exit code:', code);
+        // Check if killed by signal (cancelled)
+        if (signal === 'SIGTERM' || signal === 'SIGKILL') {
+          wasCancelled = true;
+        }
+
+        console.log('[Executor] Claude exit code:', code, 'signal:', signal);
         console.log('[Executor] Claude stdout length:', stdout.length);
         if (stderr) console.log('[Executor] Claude stderr:', stderr);
 
-        if (code === 0 || stdout.trim()) {
+        if (wasCancelled) {
+          resolve({
+            success: false,
+            error: 'Execution cancelled',
+            duration,
+          });
+        } else if (code === 0 || stdout.trim()) {
           resolve({
             success: true,
             response: stdout.trim() || stderr.trim(),
@@ -202,6 +241,7 @@ class WindowsExecutor implements IExecutor {
 
       child.on('error', (err) => {
         clearTimeout(timer);
+        if (executionId) runningProcesses.delete(executionId);
         console.log('[Executor] Claude spawn error:', err);
         resolve({
           success: false,
@@ -392,7 +432,7 @@ class WslExecutor implements IExecutor {
       .replace(/\\/g, '/');
   }
 
-  async runClaude(message: string, systemPrompt?: string, projectPath?: string, imagePaths?: string[]): Promise<ExecuteResult> {
+  async runClaude(message: string, systemPrompt?: string, projectPath?: string, imagePaths?: string[], executionId?: string): Promise<ExecuteResult> {
     const start = Date.now();
     const args = [
       '--print',
@@ -414,10 +454,10 @@ class WslExecutor implements IExecutor {
     // Convert project path to WSL path if provided
     const wslCwd = projectPath ? this.toWslPath(projectPath) : this.wslGastownPath;
 
-    return this.wslExecWithStdin('claude', args, message, start, 120000, wslCwd);
+    return this.wslExecWithStdin('claude', args, message, start, 120000, wslCwd, executionId);
   }
 
-  private wslExecWithStdin(cmd: string, args: string[], stdinData: string, start: number, timeout = 120000, wslCwd?: string): Promise<ExecuteResult> {
+  private wslExecWithStdin(cmd: string, args: string[], stdinData: string, start: number, timeout = 120000, wslCwd?: string, executionId?: string): Promise<ExecuteResult> {
     return new Promise((resolve) => {
       // Build argument list without the message (message goes to stdin)
       const argsStr = args.map(a => `"${a.replace(/"/g, '\\"')}"`).join(' ');
@@ -432,6 +472,7 @@ class WslExecutor implements IExecutor {
         : ['bash', '-c', fullCmd];
 
       console.log('[Executor] WSL running:', fullCmd);
+      if (executionId) console.log('[Executor] Execution ID:', executionId);
 
       const child = spawn('wsl.exe', wslArgs, {
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -442,8 +483,14 @@ class WslExecutor implements IExecutor {
         },
       });
 
+      // Track the process for cancellation
+      if (executionId) {
+        runningProcesses.set(executionId, child);
+      }
+
       let stdout = '';
       let stderr = '';
+      let wasCancelled = false;
 
       child.stdout?.on('data', (data) => { stdout += data; });
       child.stderr?.on('data', (data) => { stderr += data; });
@@ -456,6 +503,7 @@ class WslExecutor implements IExecutor {
 
       const timer = setTimeout(() => {
         child.kill();
+        if (executionId) runningProcesses.delete(executionId);
         resolve({
           success: false,
           error: `Timeout after ${timeout / 1000} seconds`,
@@ -463,14 +511,26 @@ class WslExecutor implements IExecutor {
         });
       }, timeout);
 
-      child.on('close', (code) => {
+      child.on('close', (code, signal) => {
         clearTimeout(timer);
+        if (executionId) runningProcesses.delete(executionId);
         const duration = Date.now() - start;
 
-        console.log('[Executor] WSL Claude exit code:', code);
+        // Check if killed by signal (cancelled)
+        if (signal === 'SIGTERM' || signal === 'SIGKILL') {
+          wasCancelled = true;
+        }
+
+        console.log('[Executor] WSL Claude exit code:', code, 'signal:', signal);
         if (stderr) console.log('[Executor] WSL Claude stderr:', stderr);
 
-        if (code === 0 || stdout.trim()) {
+        if (wasCancelled) {
+          resolve({
+            success: false,
+            error: 'Execution cancelled',
+            duration,
+          });
+        } else if (code === 0 || stdout.trim()) {
           resolve({
             success: true,
             response: stdout.trim() || stderr.trim(),
@@ -487,6 +547,7 @@ class WslExecutor implements IExecutor {
 
       child.on('error', (err) => {
         clearTimeout(timer);
+        if (executionId) runningProcesses.delete(executionId);
         resolve({
           success: false,
           error: err.message,
