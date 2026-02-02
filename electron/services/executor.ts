@@ -117,6 +117,26 @@ class WindowsExecutor implements IExecutor {
     }
   }
 
+  // Convert WSL path to Windows-accessible path
+  private toWindowsPath(inputPath: string): string {
+    if (!inputPath) return inputPath;
+
+    // Already a Windows path (has drive letter or UNC)
+    if (/^[A-Za-z]:/.test(inputPath) || inputPath.startsWith('\\\\')) {
+      return inputPath;
+    }
+
+    // WSL absolute path (starts with /) - convert to UNC path
+    if (inputPath.startsWith('/')) {
+      // Use wsl.localhost which is more reliable than wsl$
+      const distro = settings.get('wsl.distro') as string || 'Ubuntu';
+      return `\\\\wsl.localhost\\${distro}${inputPath.replace(/\//g, '\\')}`;
+    }
+
+    // Relative or unknown path - return as-is
+    return inputPath;
+  }
+
   async runClaude(message: string, systemPrompt?: string, projectPath?: string, imagePaths?: string[], executionId?: string): Promise<ExecuteResult> {
     const start = Date.now();
 
@@ -141,15 +161,16 @@ class WindowsExecutor implements IExecutor {
     // Add image files if provided
     if (imagePaths && imagePaths.length > 0) {
       for (const imagePath of imagePaths) {
-        args.push('--add', imagePath);
+        args.push('--add', this.toWindowsPath(imagePath));
       }
     }
 
     // Add the prompt as positional argument (Claude Code expects this, not stdin)
     args.push('--', message);
 
-    // Use project path if provided, otherwise use gastown path
-    const cwd = projectPath || this.gastownPath;
+    // Convert project path to Windows-accessible path
+    const cwd = this.toWindowsPath(projectPath || this.gastownPath);
+    console.log('[Executor] Windows cwd:', cwd, '(from:', projectPath, ')');
 
     // Use spawn without stdin since prompt is passed as argument
     return this.spawnCommand(this.claudePath, args, cwd, start, 120000, executionId);  // 2 min idle timeout
