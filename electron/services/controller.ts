@@ -277,44 +277,13 @@ export function updateTokenUsage(input: number, output: number): void {
     notifyUsageWarning(newStatus, Math.round(percentage));
   }
 
-  // Auto-pause if at limit
-  let pausedDueToLimit = current.pausedDueToLimit;
-  if (newStatus === 'at_limit' && current.status === 'running') {
-    pausedDueToLimit = true;
-    stopProcessingLoop();
-    updateState({
-      status: 'paused',
-      currentAction: 'Paused: Token usage limit reached',
-      tokenUsage: newUsage,
-      dailyTokenUsage: dailyUsage,
-      usageLimitStatus: newStatus,
-      pausedDueToLimit,
-    });
-    return;
-  }
-
-  // Auto-resume if was paused due to limit and reset occurred
-  if (shouldResetHourly && current.pausedDueToLimit && current.usageLimitConfig.autoResumeOnReset) {
-    if (newStatus === 'ok' || newStatus === 'warning') {
-      pausedDueToLimit = false;
-      updateState({
-        status: 'running',
-        currentAction: 'Resuming after limit reset...',
-        tokenUsage: newUsage,
-        dailyTokenUsage: dailyUsage,
-        usageLimitStatus: newStatus,
-        pausedDueToLimit,
-      });
-      startProcessingLoop();
-      return;
-    }
-  }
-
+  // Token usage is monitored only - no auto-pause
+  // Claude Code itself provides warnings when approaching API limits
   updateState({
     tokenUsage: newUsage,
     dailyTokenUsage: dailyUsage,
     usageLimitStatus: newStatus,
-    pausedDueToLimit,
+    pausedDueToLimit: false,  // Never pause due to limit - just monitor
   });
 }
 
