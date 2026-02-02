@@ -273,7 +273,7 @@ export interface AppSettings {
 }
 
 // Controller (Phat Controller - AI Project Manager) Types
-export type ControllerStatus = 'idle' | 'running' | 'paused' | 'waiting_approval' | 'waiting_input';
+export type ControllerStatus = 'idle' | 'running' | 'paused' | 'waiting_approval' | 'waiting_input' | 'winding_down';
 export type ControllerPhase = 'planning' | 'executing' | 'reviewing' | 'idle';
 
 export interface ProgressState {

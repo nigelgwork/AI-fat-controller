@@ -10,7 +10,7 @@ function generateId(): string {
 }
 
 // Types
-export type ControllerStatus = 'idle' | 'running' | 'paused' | 'waiting_approval' | 'waiting_input';
+export type ControllerStatus = 'idle' | 'running' | 'paused' | 'waiting_approval' | 'waiting_input' | 'winding_down';
 export type ApprovalActionType = 'planning' | 'architecture' | 'git_push' | 'large_edit';
 export type ControllerPhase = 'planning' | 'executing' | 'reviewing' | 'idle';
 
@@ -277,14 +277,41 @@ export function updateTokenUsage(input: number, output: number): void {
     notifyUsageWarning(newStatus, Math.round(percentage));
   }
 
-  // Token usage is monitored only - no auto-pause
-  // Claude Code itself provides warnings when approaching API limits
-  updateState({
+  // Graceful wind-down when approaching limit
+  // Let current task finish, but don't start new ones until limit resets
+  let newControllerStatus = current.status;
+  let pausedDueToLimit = current.pausedDueToLimit;
+
+  if (shouldResetHourly && current.status === 'winding_down') {
+    // Hourly limit has reset - resume normal operation
+    newControllerStatus = 'running';
+    pausedDueToLimit = false;
+    console.log('[Controller] Token limit reset - resuming normal operation');
+  } else if ((newStatus === 'approaching_limit' || newStatus === 'at_limit') && current.status === 'running') {
+    // Approaching or at limit - wind down gracefully
+    newControllerStatus = 'winding_down';
+    pausedDueToLimit = true;
+    const resetTime = new Date(newUsage.resetAt);
+    const minsUntilReset = Math.ceil((resetTime.getTime() - Date.now()) / 60000);
+    console.log(`[Controller] Approaching token limit - winding down. Will resume in ~${minsUntilReset} minutes`);
+  }
+
+  const stateUpdate: Partial<ControllerState> = {
     tokenUsage: newUsage,
     dailyTokenUsage: dailyUsage,
     usageLimitStatus: newStatus,
-    pausedDueToLimit: false,  // Never pause due to limit - just monitor
-  });
+    pausedDueToLimit,
+  };
+
+  // Only update status if it changed
+  if (newControllerStatus !== current.status) {
+    stateUpdate.status = newControllerStatus;
+    stateUpdate.currentAction = newControllerStatus === 'winding_down'
+      ? 'Winding down - approaching token limit'
+      : 'Resuming after token limit reset';
+  }
+
+  updateState(stateUpdate);
 }
 
 export function resetTokenUsage(): void {
@@ -596,6 +623,23 @@ async function processTask(task: Task): Promise<void> {
 async function processNextTask(): Promise<void> {
   const state = getControllerState();
 
+  // Don't pick up new tasks if winding down due to token limit
+  if (state.status === 'winding_down') {
+    // Check if hourly limit has reset
+    if (new Date() > new Date(state.tokenUsage.resetAt)) {
+      // Limit has reset - resume normal operation
+      updateState({
+        status: 'running',
+        currentAction: 'Resuming after token limit reset...',
+        pausedDueToLimit: false,
+      });
+      // Continue to pick up next task
+    } else {
+      // Still in wind-down period, don't start new tasks
+      return;
+    }
+  }
+
   if (state.status !== 'running') {
     return;
   }
@@ -625,7 +669,9 @@ function startProcessingLoop(): void {
   processNextTask();
   processingInterval = setInterval(() => {
     const state = getControllerState();
-    if (state.status === 'running') {
+    // Keep loop running for both 'running' and 'winding_down' states
+    // winding_down needs the loop to check when limit resets
+    if (state.status === 'running' || state.status === 'winding_down') {
       processNextTask();
     }
   }, 5000);

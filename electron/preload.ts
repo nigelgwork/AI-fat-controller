@@ -155,7 +155,7 @@ export interface AppSettings {
 }
 
 // Controller (Phat Controller) types
-export type ControllerStatus = 'idle' | 'running' | 'paused' | 'waiting_approval' | 'waiting_input';
+export type ControllerStatus = 'idle' | 'running' | 'paused' | 'waiting_approval' | 'waiting_input' | 'winding_down';
 export type ControllerPhase = 'planning' | 'executing' | 'reviewing' | 'idle';
 export type ApprovalActionType = 'planning' | 'architecture' | 'git_push' | 'large_edit';
 

@@ -257,6 +257,8 @@ export default function Controller() {
     switch (status) {
       case 'running':
         return 'text-green-400';
+      case 'winding_down':
+        return 'text-orange-400';
       case 'paused':
         return 'text-yellow-400';
       case 'waiting_approval':
@@ -272,6 +274,8 @@ export default function Controller() {
     switch (status) {
       case 'running':
         return <Activity className="w-5 h-5 animate-pulse" />;
+      case 'winding_down':
+        return <Clock className="w-5 h-5 animate-pulse" />;
       case 'paused':
         return <Pause className="w-5 h-5" />;
       case 'waiting_approval':
@@ -287,6 +291,8 @@ export default function Controller() {
     switch (status) {
       case 'running':
         return 'Running';
+      case 'winding_down':
+        return 'Winding Down';
       case 'paused':
         return 'Paused';
       case 'waiting_approval':
@@ -355,6 +361,7 @@ export default function Controller() {
 
   const isActive = controllerState?.status !== 'idle';
   const isPaused = controllerState?.status === 'paused';
+  const isWindingDown = controllerState?.status === 'winding_down';
   const pendingApprovals = approvalQueue.filter((r) => r.status === 'pending');
 
   return (
@@ -449,6 +456,15 @@ export default function Controller() {
                     >
                       <Play className="w-4 h-4" />
                       Resume
+                    </button>
+                  ) : isWindingDown ? (
+                    <button
+                      disabled
+                      className="flex items-center gap-2 px-4 py-2 bg-orange-600/50 text-white/70 rounded-lg cursor-not-allowed"
+                      title="Will auto-resume when token limit resets"
+                    >
+                      <Clock className="w-4 h-4 animate-pulse" />
+                      Auto-resuming...
                     </button>
                   ) : (
                     <button
