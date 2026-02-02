@@ -150,7 +150,8 @@ class WindowsExecutor implements IExecutor {
 
     const args = [
       '--print',
-      '--output-format', 'text',
+      '--output-format', 'stream-json',  // Stream JSON for real-time tool visibility
+      '--verbose',  // Required for stream-json
       '--dangerously-skip-permissions',  // Required for non-interactive use
     ];
 
@@ -173,7 +174,7 @@ class WindowsExecutor implements IExecutor {
     console.log('[Executor] Windows cwd:', cwd, '(from:', projectPath, ')');
 
     // Use spawn without stdin since prompt is passed as argument
-    return this.spawnCommand(this.claudePath, args, cwd, start, 120000, executionId);  // 2 min idle timeout
+    return this.spawnCommandWithJsonParsing(this.claudePath, args, cwd, start, 120000, executionId);  // 2 min idle timeout
   }
 
   private spawnWithStdin(
@@ -289,6 +290,219 @@ class WindowsExecutor implements IExecutor {
         clearTimeout(timer);
         if (executionId) runningProcesses.delete(executionId);
         console.log('[Executor] Claude spawn error:', err);
+        resolve({
+          success: false,
+          error: err.message,
+          duration: Date.now() - start,
+        });
+      });
+    });
+  }
+
+  // Parse JSON stream output from Claude Code and send structured events to frontend
+  private spawnCommandWithJsonParsing(
+    cmd: string,
+    args: string[],
+    cwd: string,
+    start: number,
+    idleTimeout = 120000,
+    executionId?: string
+  ): Promise<ExecuteResult> {
+    return new Promise((resolve) => {
+      const validCwd = getValidCwd(cwd);
+
+      console.log('[Executor] Running Claude with JSON streaming in:', validCwd);
+      console.log('[Executor] Idle timeout:', idleTimeout / 1000, 'seconds');
+      if (executionId) console.log('[Executor] Execution ID:', executionId);
+
+      const { BrowserWindow } = require('electron');
+
+      // Send init event
+      BrowserWindow.getAllWindows().forEach((win: Electron.BrowserWindow) => {
+        win.webContents.send('executor-log', {
+          type: 'spawn-command',
+          cmd,
+          argsCount: args.length,
+          cwd: validCwd,
+          idleTimeout,
+          executionId,
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      const child = spawn(cmd, args, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, GASTOWN_PATH: this.gastownPath },
+        cwd: validCwd,
+        windowsHide: true,
+        shell: true,
+      });
+
+      if (executionId) {
+        runningProcesses.set(executionId, child);
+      }
+
+      let fullOutput = '';
+      let finalResult = '';
+      let stderr = '';
+      let wasCancelled = false;
+      let lastActivity = Date.now();
+
+      const resetIdleTimer = () => {
+        lastActivity = Date.now();
+      };
+
+      const idleChecker = setInterval(() => {
+        const idleTime = Date.now() - lastActivity;
+        if (idleTime >= idleTimeout) {
+          clearInterval(idleChecker);
+          child.kill();
+          if (executionId) runningProcesses.delete(executionId);
+          console.log('[Executor] IDLE TIMEOUT');
+          resolve({
+            success: false,
+            error: `Idle timeout - no activity for ${idleTimeout / 1000} seconds`,
+            duration: Date.now() - start,
+          });
+        }
+      }, 5000);
+
+      // Parse JSON lines from stdout
+      let lineBuffer = '';
+      child.stdout?.on('data', (data) => {
+        fullOutput += data;
+        resetIdleTimer();
+
+        // Process complete JSON lines
+        lineBuffer += data.toString();
+        const lines = lineBuffer.split('\n');
+        lineBuffer = lines.pop() || '';  // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          try {
+            const json = JSON.parse(line);
+
+            // Send structured events based on JSON type
+            if (json.type === 'assistant' && json.message?.content) {
+              for (const content of json.message.content) {
+                if (content.type === 'tool_use') {
+                  // Tool being called
+                  const toolName = content.name;
+                  const toolInput = content.input || {};
+                  let description = toolInput.description || toolInput.command || toolInput.pattern || toolInput.file_path || '';
+                  if (description.length > 100) description = description.substring(0, 100) + '...';
+
+                  BrowserWindow.getAllWindows().forEach((win: Electron.BrowserWindow) => {
+                    win.webContents.send('executor-log', {
+                      type: 'tool-call',
+                      tool: toolName,
+                      description,
+                      executionId,
+                      timestamp: new Date().toISOString(),
+                    });
+                  });
+                } else if (content.type === 'text' && content.text) {
+                  // Text response
+                  const text = content.text.substring(0, 200);
+                  BrowserWindow.getAllWindows().forEach((win: Electron.BrowserWindow) => {
+                    win.webContents.send('executor-log', {
+                      type: 'text',
+                      text,
+                      executionId,
+                      timestamp: new Date().toISOString(),
+                    });
+                  });
+                }
+              }
+            } else if (json.type === 'user' && json.tool_use_result) {
+              // Tool result
+              const result = json.tool_use_result;
+              const preview = (result.stdout || result.stderr || '').substring(0, 100);
+              BrowserWindow.getAllWindows().forEach((win: Electron.BrowserWindow) => {
+                win.webContents.send('executor-log', {
+                  type: 'tool-result',
+                  preview: preview || '(no output)',
+                  isError: result.is_error || !!result.stderr,
+                  executionId,
+                  timestamp: new Date().toISOString(),
+                });
+              });
+            } else if (json.type === 'result') {
+              // Final result
+              finalResult = json.result || '';
+              const duration = json.duration_ms || (Date.now() - start);
+              const cost = json.total_cost_usd;
+              BrowserWindow.getAllWindows().forEach((win: Electron.BrowserWindow) => {
+                win.webContents.send('executor-log', {
+                  type: 'complete',
+                  code: json.is_error ? 1 : 0,
+                  duration,
+                  cost,
+                  numTurns: json.num_turns,
+                  executionId,
+                  timestamp: new Date().toISOString(),
+                });
+              });
+            }
+          } catch (e) {
+            // Not valid JSON, might be stderr or other output
+            console.log('[Executor] Non-JSON line:', line.substring(0, 100));
+          }
+        }
+      });
+
+      child.stderr?.on('data', (data) => {
+        stderr += data;
+        resetIdleTimer();
+        const chunk = data.toString().substring(0, 200);
+        console.log('[Executor] stderr:', chunk);
+        BrowserWindow.getAllWindows().forEach((win: Electron.BrowserWindow) => {
+          win.webContents.send('executor-log', {
+            type: 'stderr',
+            chunk,
+            executionId,
+            timestamp: new Date().toISOString(),
+          });
+        });
+      });
+
+      child.on('close', (code, signal) => {
+        clearInterval(idleChecker);
+        if (executionId) runningProcesses.delete(executionId);
+        const duration = Date.now() - start;
+
+        if (signal === 'SIGTERM' || signal === 'SIGKILL') {
+          wasCancelled = true;
+        }
+
+        console.log('[Executor] Exit code:', code, 'signal:', signal, 'duration:', duration);
+
+        if (wasCancelled) {
+          resolve({
+            success: false,
+            error: 'Execution cancelled',
+            duration,
+          });
+        } else if (code === 0 || finalResult) {
+          resolve({
+            success: true,
+            response: finalResult || fullOutput,
+            duration,
+          });
+        } else {
+          resolve({
+            success: false,
+            error: stderr.trim() || `Exit code ${code}`,
+            duration,
+          });
+        }
+      });
+
+      child.on('error', (err) => {
+        clearInterval(idleChecker);
+        if (executionId) runningProcesses.delete(executionId);
         resolve({
           success: false,
           error: err.message,
@@ -654,7 +868,8 @@ class WslExecutor implements IExecutor {
     const start = Date.now();
     const args = [
       '--print',
-      '--output-format', 'text',
+      '--output-format', 'stream-json',  // Stream JSON for real-time tool visibility
+      '--verbose',  // Required for stream-json
       '--dangerously-skip-permissions',  // Required for non-interactive use
     ];
 
@@ -675,7 +890,139 @@ class WslExecutor implements IExecutor {
     // Convert project path to WSL path if provided
     const wslCwd = projectPath ? this.toWslPath(projectPath) : this.wslGastownPath;
 
-    return this.wslExecCommand('claude', args, start, 120000, wslCwd, executionId);  // 2 min idle timeout
+    return this.wslExecCommandWithJsonParsing('claude', args, start, 120000, wslCwd, executionId);  // 2 min idle timeout
+  }
+
+  // Parse JSON stream output from Claude Code in WSL
+  private wslExecCommandWithJsonParsing(cmd: string, args: string[], start: number, idleTimeout = 120000, wslCwd?: string, executionId?: string): Promise<ExecuteResult> {
+    return new Promise((resolve) => {
+      const argsStr = args.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ');
+      const fullCmd = wslCwd ? `cd '${wslCwd}' && ${cmd} ${argsStr}` : `${cmd} ${argsStr}`;
+      const wslArgs = this.distro
+        ? ['-d', this.distro, 'bash', '-c', fullCmd]
+        : ['bash', '-c', fullCmd];
+
+      console.log('[Executor] WSL running Claude with JSON streaming');
+      if (executionId) console.log('[Executor] Execution ID:', executionId);
+
+      const { BrowserWindow } = require('electron');
+      BrowserWindow.getAllWindows().forEach((win: Electron.BrowserWindow) => {
+        win.webContents.send('executor-log', {
+          type: 'wsl-spawn',
+          cmd,
+          argsCount: args.length,
+          cwd: wslCwd,
+          idleTimeout,
+          executionId,
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      const child = spawn('wsl.exe', wslArgs, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, WSLENV: 'GASTOWN_PATH/p', GASTOWN_PATH: this.gastownPath },
+      });
+
+      if (executionId) {
+        runningProcesses.set(executionId, child);
+      }
+
+      let fullOutput = '';
+      let finalResult = '';
+      let stderr = '';
+      let wasCancelled = false;
+      let lastActivity = Date.now();
+
+      const resetIdleTimer = () => { lastActivity = Date.now(); };
+
+      const idleChecker = setInterval(() => {
+        if (Date.now() - lastActivity >= idleTimeout) {
+          clearInterval(idleChecker);
+          child.kill();
+          if (executionId) runningProcesses.delete(executionId);
+          resolve({
+            success: false,
+            error: `Idle timeout - no activity for ${idleTimeout / 1000} seconds`,
+            duration: Date.now() - start,
+          });
+        }
+      }, 5000);
+
+      let lineBuffer = '';
+      child.stdout?.on('data', (data) => {
+        fullOutput += data;
+        resetIdleTimer();
+
+        lineBuffer += data.toString();
+        const lines = lineBuffer.split('\n');
+        lineBuffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const json = JSON.parse(line);
+            if (json.type === 'assistant' && json.message?.content) {
+              for (const content of json.message.content) {
+                if (content.type === 'tool_use') {
+                  const toolName = content.name;
+                  const toolInput = content.input || {};
+                  let description = toolInput.description || toolInput.command || toolInput.pattern || toolInput.file_path || '';
+                  if (description.length > 100) description = description.substring(0, 100) + '...';
+                  BrowserWindow.getAllWindows().forEach((win: Electron.BrowserWindow) => {
+                    win.webContents.send('executor-log', { type: 'tool-call', tool: toolName, description, executionId, timestamp: new Date().toISOString() });
+                  });
+                } else if (content.type === 'text' && content.text) {
+                  BrowserWindow.getAllWindows().forEach((win: Electron.BrowserWindow) => {
+                    win.webContents.send('executor-log', { type: 'text', text: content.text.substring(0, 200), executionId, timestamp: new Date().toISOString() });
+                  });
+                }
+              }
+            } else if (json.type === 'user' && json.tool_use_result) {
+              const result = json.tool_use_result;
+              const preview = (result.stdout || result.stderr || '').substring(0, 100);
+              BrowserWindow.getAllWindows().forEach((win: Electron.BrowserWindow) => {
+                win.webContents.send('executor-log', { type: 'tool-result', preview: preview || '(no output)', isError: result.is_error || !!result.stderr, executionId, timestamp: new Date().toISOString() });
+              });
+            } else if (json.type === 'result') {
+              finalResult = json.result || '';
+              BrowserWindow.getAllWindows().forEach((win: Electron.BrowserWindow) => {
+                win.webContents.send('executor-log', { type: 'complete', code: json.is_error ? 1 : 0, duration: json.duration_ms, cost: json.total_cost_usd, numTurns: json.num_turns, executionId, timestamp: new Date().toISOString() });
+              });
+            }
+          } catch (e) {
+            // Not valid JSON
+          }
+        }
+      });
+
+      child.stderr?.on('data', (data) => {
+        stderr += data;
+        resetIdleTimer();
+        BrowserWindow.getAllWindows().forEach((win: Electron.BrowserWindow) => {
+          win.webContents.send('executor-log', { type: 'stderr', chunk: data.toString().substring(0, 200), executionId, timestamp: new Date().toISOString() });
+        });
+      });
+
+      child.on('close', (code, signal) => {
+        clearInterval(idleChecker);
+        if (executionId) runningProcesses.delete(executionId);
+        if (signal === 'SIGTERM' || signal === 'SIGKILL') wasCancelled = true;
+
+        if (wasCancelled) {
+          resolve({ success: false, error: 'Execution cancelled', duration: Date.now() - start });
+        } else if (code === 0 || finalResult) {
+          resolve({ success: true, response: finalResult || fullOutput, duration: Date.now() - start });
+        } else {
+          resolve({ success: false, error: stderr.trim() || `Exit code ${code}`, duration: Date.now() - start });
+        }
+      });
+
+      child.on('error', (err) => {
+        clearInterval(idleChecker);
+        if (executionId) runningProcesses.delete(executionId);
+        resolve({ success: false, error: err.message, duration: Date.now() - start });
+      });
+    });
   }
 
   private wslExecCommand(cmd: string, args: string[], start: number, idleTimeout = 120000, wslCwd?: string, executionId?: string): Promise<ExecuteResult> {

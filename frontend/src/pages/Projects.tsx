@@ -556,28 +556,49 @@ function DeepDivePlanView({ plan, onRegenerate, isRegenerating }: { plan: DeepDi
           message = `Starting Claude Code (WSL)...`;
           setLastActivity('Initializing');
           break;
+        case 'tool-call': {
+          // Structured tool call from JSON stream
+          const tool = log.tool as string;
+          const desc = log.description as string || '';
+          message = `[${tool}] ${desc}`;
+
+          // Set activity based on tool
+          const toolActivities: Record<string, string> = {
+            'Read': 'Reading file',
+            'Edit': 'Editing file',
+            'Write': 'Writing file',
+            'Grep': 'Searching code',
+            'Glob': 'Finding files',
+            'Bash': 'Running command',
+            'Task': 'Spawning agent',
+            'WebFetch': 'Fetching URL',
+            'WebSearch': 'Searching web',
+          };
+          setLastActivity(toolActivities[tool] || `Using ${tool}`);
+          break;
+        }
+        case 'tool-result': {
+          // Tool execution result
+          const preview = log.preview as string || '(completed)';
+          const isErr = log.isError as boolean;
+          message = isErr ? `[error] ${preview}` : `→ ${preview}`;
+          break;
+        }
+        case 'text': {
+          // Claude's text response
+          const text = log.text as string || '';
+          if (text.trim()) {
+            message = text;
+            setLastActivity('Responding');
+          }
+          break;
+        }
         case 'stdout':
         case 'wsl-stdout': {
+          // Legacy format fallback
           const chunk = (log.chunk as string) || '';
           bytes = (log.totalLength as number) || 0;
           setOutputBytes(bytes);
-
-          // Parse Claude Code output for activity indicators
-          if (chunk.includes('Read(')) {
-            setLastActivity('Reading file');
-          } else if (chunk.includes('Grep(') || chunk.includes('Glob(')) {
-            setLastActivity('Searching');
-          } else if (chunk.includes('Edit(') || chunk.includes('Write(')) {
-            setLastActivity('Writing code');
-          } else if (chunk.includes('Bash(')) {
-            setLastActivity('Running command');
-          } else if (chunk.includes('Task(')) {
-            setLastActivity('Spawning agent');
-          } else if (chunk.length > 0) {
-            setLastActivity('Processing');
-          }
-
-          // Only add meaningful chunks to logs (skip empty)
           if (chunk.trim()) {
             message = chunk.length > 100 ? chunk.substring(0, 100) + '...' : chunk;
           }
@@ -600,12 +621,15 @@ function DeepDivePlanView({ plan, onRegenerate, isRegenerating }: { plan: DeepDi
         case 'wsl-complete': {
           const code = log.code as number;
           const duration = ((log.duration as number) / 1000).toFixed(1);
-          message = `Completed (exit: ${code}, ${duration}s, ${log.stdoutLength} bytes)`;
+          const cost = log.cost as number | undefined;
+          const turns = log.numTurns as number | undefined;
+          message = `Completed (${duration}s${turns ? `, ${turns} turns` : ''}${cost ? `, $${cost.toFixed(4)}` : ''})`;
           setLastActivity(code === 0 ? 'Completed' : 'Failed');
           break;
         }
         default:
-          message = `${log.type}`;
+          // Skip unknown types
+          break;
       }
 
       if (message) {
