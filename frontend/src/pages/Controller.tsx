@@ -20,6 +20,9 @@ import {
   Plus,
   Trash2,
   Cpu,
+  Terminal,
+  FileText,
+  Wrench,
 } from 'lucide-react';
 import type { ControllerState, ApprovalRequest, ActionLog } from '../types/gastown';
 import ApprovalModal from '../components/ApprovalModal';
@@ -33,6 +36,21 @@ interface Message {
   tokens?: { input: number; output: number };
 }
 
+// Streaming event types
+interface StreamingEvent {
+  id: string;
+  type: 'tool-call' | 'tool-result' | 'text' | 'stderr' | 'complete' | 'spawn';
+  timestamp: string;
+  tool?: string;
+  description?: string;
+  text?: string;
+  preview?: string;
+  isError?: boolean;
+  duration?: number;
+  cost?: number;
+  numTurns?: number;
+}
+
 export default function Controller() {
   const queryClient = useQueryClient();
   const [selectedApproval, setSelectedApproval] = useState<ApprovalRequest | null>(null);
@@ -44,6 +62,11 @@ export default function Controller() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Streaming state
+  const [streamingEvents, setStreamingEvents] = useState<StreamingEvent[]>([]);
+  const [_currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
+  const streamingEventsRef = useRef<StreamingEvent[]>([]);
 
   // Fetch Controller state
   const { data: controllerState, isLoading: stateLoading } = useQuery({
@@ -172,6 +195,52 @@ export default function Controller() {
     };
   }, [queryClient]);
 
+  // Subscribe to executor streaming events
+  useEffect(() => {
+    const unsubExecutor = window.electronAPI?.onExecutorLog?.((log) => {
+      const event: StreamingEvent = {
+        id: `${log.executionId || 'unknown'}-${Date.now()}`,
+        type: log.type as StreamingEvent['type'],
+        timestamp: log.timestamp as string || new Date().toISOString(),
+        tool: log.tool as string,
+        description: log.description as string,
+        text: log.text as string,
+        preview: log.preview as string,
+        isError: log.isError as boolean,
+        duration: log.duration as number,
+        cost: log.cost as number,
+        numTurns: log.numTurns as number,
+      };
+
+      // Track execution ID
+      if (log.type === 'spawn' || log.type === 'spawn-command') {
+        setCurrentExecutionId(log.executionId as string || null);
+        setStreamingEvents([]);
+        streamingEventsRef.current = [];
+      }
+
+      // Add event to list (keep last 50)
+      if (['tool-call', 'tool-result', 'text', 'complete'].includes(log.type)) {
+        setStreamingEvents((prev) => {
+          const updated = [...prev, event].slice(-50);
+          streamingEventsRef.current = updated;
+          return updated;
+        });
+      }
+
+      // Clear streaming state on complete
+      if (log.type === 'complete' || log.type === 'wsl-complete') {
+        setTimeout(() => {
+          setCurrentExecutionId(null);
+        }, 2000); // Keep visible for 2 seconds after completion
+      }
+    });
+
+    return () => {
+      unsubExecutor?.();
+    };
+  }, []);
+
   // Scroll to bottom when messages change
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -196,6 +265,7 @@ export default function Controller() {
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setLoading(true);
+    setStreamingEvents([]); // Clear previous streaming events
 
     // Save to conversation if session exists
     if (selectedSessionId) {
@@ -621,9 +691,82 @@ export default function Controller() {
                   </div>
                 ))}
                 {loading && (
-                  <div className="flex justify-start">
-                    <div className="bg-slate-700 rounded-lg p-3">
-                      <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+                  <div className="flex justify-start w-full">
+                    <div className="bg-slate-700 rounded-lg p-3 max-w-[90%] w-full">
+                      {/* Streaming events display */}
+                      {streamingEvents.length > 0 ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-cyan-400 mb-2">
+                            <Terminal className="w-4 h-4" />
+                            <span className="text-sm font-medium">Claude is working...</span>
+                          </div>
+                          <div className="max-h-48 overflow-y-auto space-y-1.5 scrollbar-thin">
+                            {streamingEvents.slice(-10).map((event) => (
+                              <div
+                                key={event.id}
+                                className={`text-xs flex items-start gap-2 p-1.5 rounded ${
+                                  event.type === 'tool-call'
+                                    ? 'bg-blue-500/10 text-blue-300'
+                                    : event.type === 'tool-result'
+                                    ? event.isError
+                                      ? 'bg-red-500/10 text-red-300'
+                                      : 'bg-green-500/10 text-green-300'
+                                    : event.type === 'text'
+                                    ? 'bg-slate-600/50 text-slate-200'
+                                    : event.type === 'complete'
+                                    ? 'bg-cyan-500/10 text-cyan-300'
+                                    : 'bg-slate-600/30 text-slate-400'
+                                }`}
+                              >
+                                {event.type === 'tool-call' && (
+                                  <>
+                                    <Wrench className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                                    <span>
+                                      <span className="font-medium">{event.tool}</span>
+                                      {event.description && (
+                                        <span className="text-slate-400 ml-1">
+                                          {event.description}
+                                        </span>
+                                      )}
+                                    </span>
+                                  </>
+                                )}
+                                {event.type === 'tool-result' && (
+                                  <>
+                                    {event.isError ? (
+                                      <XCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                                    ) : (
+                                      <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                                    )}
+                                    <span className="truncate">{event.preview || '(done)'}</span>
+                                  </>
+                                )}
+                                {event.type === 'text' && (
+                                  <>
+                                    <FileText className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                                    <span className="truncate">{event.text}</span>
+                                  </>
+                                )}
+                                {event.type === 'complete' && (
+                                  <>
+                                    <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                                    <span>
+                                      Completed in {formatDuration(event.duration || 0)}
+                                      {event.numTurns && ` (${event.numTurns} turns)`}
+                                      {event.cost && ` • $${event.cost.toFixed(4)}`}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+                          <span className="text-sm text-slate-400">Starting execution...</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

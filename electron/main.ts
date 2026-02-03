@@ -7,6 +7,9 @@ import { initAutoUpdater, checkForUpdates, stopAutoUpdater } from './services/au
 import { initControllerStore, getControllerState, pauseController, resumeController } from './services/controller';
 import { initNtfyStore, startPolling as startNtfyPolling, stopPolling as stopNtfyPolling, getNtfyConfig } from './services/ntfy';
 import { initBriefsStore } from './services/project-briefs';
+import { createLogger, configureLogger } from './utils/logger';
+
+const log = createLogger('Main');
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -262,11 +265,11 @@ app.on('before-quit', () => {
 
 // Global error handlers to prevent silent crashes
 process.on('uncaughtException', (error) => {
-  console.error('[Main] Uncaught Exception:', error);
+  log.error('Uncaught Exception', error);
   // Don't crash the app, but log the error
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('[Main] Unhandled Rejection at:', promise, 'reason:', reason);
+  log.error('Unhandled Rejection', { promise, reason });
   // Don't crash the app, but log the error
 });

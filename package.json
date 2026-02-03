@@ -20,7 +20,8 @@
   "dependencies": {
     "electron-store": "^8.2.0",
     "electron-updater": "^6.7.3",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tanstack/react-query": "^5.90.16",
@@ -49,7 +50,10 @@
     "zustand": "^5.0.9"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["electron", "esbuild"]
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild"
+    ]
   },
   "build": {
     "appId": "com.aicontroller.app",

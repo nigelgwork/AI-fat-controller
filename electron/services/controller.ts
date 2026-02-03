@@ -66,8 +66,16 @@ export interface ApprovalRequest {
   actionType: ApprovalActionType;
   description: string;
   details: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'timed_out';
   createdAt: string;
+  expiresAt?: string; // Optional timeout
+}
+
+export interface AutoApprovalRules {
+  enabled: boolean;
+  allowedActionTypes: ApprovalActionType[];
+  maxPendingTimeMinutes: number; // Auto-approve after this time (0 = never)
+  requireConfirmationForGitPush: boolean;
 }
 
 export interface ActionLog {
@@ -87,7 +95,15 @@ interface ControllerStore {
   state: ControllerState;
   approvalQueue: ApprovalRequest[];
   actionLogs: ActionLog[];
+  autoApprovalRules: AutoApprovalRules;
 }
+
+const defaultAutoApprovalRules: AutoApprovalRules = {
+  enabled: false,
+  allowedActionTypes: ['planning'], // Only auto-approve planning by default
+  maxPendingTimeMinutes: 0, // Never auto-approve based on time by default
+  requireConfirmationForGitPush: true,
+};
 
 // Default context window - will be updated with real value from Claude API
 const DEFAULT_CONTEXT_WINDOW = 200000;
@@ -131,6 +147,7 @@ const defaults: ControllerStore = {
   state: defaultState,
   approvalQueue: [],
   actionLogs: [],
+  autoApprovalRules: defaultAutoApprovalRules,
 };
 
 let store: Store<ControllerStore>;
@@ -390,6 +407,87 @@ function updateApprovalRequest(id: string, updates: Partial<ApprovalRequest>): A
   queue[index] = { ...queue[index], ...updates };
   getStore().set('approvalQueue', queue);
   return queue[index];
+}
+
+// Auto-approval rules management
+export function getAutoApprovalRules(): AutoApprovalRules {
+  return getStore().get('autoApprovalRules') || defaultAutoApprovalRules;
+}
+
+export function updateAutoApprovalRules(updates: Partial<AutoApprovalRules>): AutoApprovalRules {
+  const current = getAutoApprovalRules();
+  const updated = { ...current, ...updates };
+  getStore().set('autoApprovalRules', updated);
+  return updated;
+}
+
+/**
+ * Check if an action type should be auto-approved based on rules
+ */
+export function shouldAutoApprove(actionType: ApprovalActionType): boolean {
+  const rules = getAutoApprovalRules();
+
+  if (!rules.enabled) return false;
+  if (actionType === 'git_push' && rules.requireConfirmationForGitPush) return false;
+
+  return rules.allowedActionTypes.includes(actionType);
+}
+
+/**
+ * Check and process any timed-out approval requests
+ * Should be called periodically
+ */
+export function processApprovalTimeouts(): void {
+  const rules = getAutoApprovalRules();
+  const queue = getApprovalQueue();
+  const now = new Date();
+
+  for (const request of queue) {
+    if (request.status !== 'pending') continue;
+
+    // Check timeout based on expiresAt
+    if (request.expiresAt && new Date(request.expiresAt) < now) {
+      // Mark as timed out
+      updateApprovalRequest(request.id, { status: 'timed_out' });
+      addActionLog({
+        id: generateId(),
+        taskId: request.taskId,
+        taskTitle: request.taskTitle,
+        actionType: request.actionType,
+        description: `Timed out: ${request.description}`,
+        autoApproved: false,
+        result: 'skipped',
+        output: 'Approval request expired',
+        duration: 0,
+        timestamp: new Date().toISOString(),
+      });
+      removeApprovalRequest(request.id);
+      continue;
+    }
+
+    // Check auto-approve based on time if configured
+    if (rules.enabled && rules.maxPendingTimeMinutes > 0) {
+      const createdAt = new Date(request.createdAt);
+      const pendingMinutes = (now.getTime() - createdAt.getTime()) / 60000;
+
+      if (pendingMinutes >= rules.maxPendingTimeMinutes && shouldAutoApprove(request.actionType)) {
+        // Auto-approve
+        approveRequest(request.id);
+        addActionLog({
+          id: generateId(),
+          taskId: request.taskId,
+          taskTitle: request.taskTitle,
+          actionType: request.actionType,
+          description: `Auto-approved after ${rules.maxPendingTimeMinutes} minutes: ${request.description}`,
+          autoApproved: true,
+          result: 'success',
+          output: 'Auto-approved based on timeout rules',
+          duration: 0,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+  }
 }
 
 // Action logging
