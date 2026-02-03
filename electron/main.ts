@@ -1,15 +1,16 @@
 import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from 'electron';
 import path from 'path';
-import { getExecutor } from './services/executor';
+import { getExecutor, cancelAllExecutions } from './services/executor';
 import { settings, initSettings } from './services/settings';
 import { registerIpcHandlers } from './ipc/handlers';
-import { initAutoUpdater, checkForUpdates } from './services/auto-updater';
+import { initAutoUpdater, checkForUpdates, stopAutoUpdater } from './services/auto-updater';
 import { initControllerStore, getControllerState, pauseController, resumeController } from './services/controller';
 import { initNtfyStore, startPolling as startNtfyPolling, stopPolling as stopNtfyPolling, getNtfyConfig } from './services/ntfy';
 import { initBriefsStore } from './services/project-briefs';
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
+let trayUpdateInterval: NodeJS.Timeout | null = null;
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
@@ -168,8 +169,11 @@ function createTray() {
     mainWindow?.focus();
   });
 
-  // Update tray menu periodically
-  setInterval(updateTrayMenu, 5000);
+  // Update tray menu periodically (store reference for cleanup)
+  if (trayUpdateInterval) {
+    clearInterval(trayUpdateInterval);
+  }
+  trayUpdateInterval = setInterval(updateTrayMenu, 5000);
 }
 
 // Track quitting state
@@ -239,4 +243,30 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
+
+  // Clean up all intervals to prevent memory leaks
+  if (trayUpdateInterval) {
+    clearInterval(trayUpdateInterval);
+    trayUpdateInterval = null;
+  }
+
+  // Stop ntfy polling
+  stopNtfyPolling();
+
+  // Stop auto-updater
+  stopAutoUpdater();
+
+  // Kill any running Claude/executor processes
+  cancelAllExecutions();
+});
+
+// Global error handlers to prevent silent crashes
+process.on('uncaughtException', (error) => {
+  console.error('[Main] Uncaught Exception:', error);
+  // Don't crash the app, but log the error
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Main] Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't crash the app, but log the error
 });

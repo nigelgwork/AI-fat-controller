@@ -1,4 +1,5 @@
-import { IpcMain, app, BrowserWindow, dialog } from 'electron';
+import { IpcMain, app, dialog, BrowserWindow } from 'electron';
+import { safeBroadcast } from '../utils/safe-ipc';
 import { getExecutor, switchExecutor, detectModes, getDebugInfo } from '../services/executor';
 import { checkForUpdates, downloadUpdate, installUpdate, getUpdateStatus, getCurrentVersion } from '../services/auto-updater';
 import { settings, getSetting, setSetting, getSettings } from '../services/settings';
@@ -214,9 +215,7 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
   ipcMain.handle('mode:set', async (_, mode: 'windows' | 'wsl') => {
     await switchExecutor(mode);
     // Notify all windows of mode change
-    BrowserWindow.getAllWindows().forEach((win) => {
-      win.webContents.send('mode-changed', mode);
-    });
+    safeBroadcast('mode-changed', mode);
   });
 
   ipcMain.handle('mode:detect', async () => {

@@ -1,10 +1,11 @@
 import { spawn, ChildProcess } from 'child_process';
-import { app } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { settings } from './settings';
+import { safeBroadcast } from '../utils/safe-ipc';
 
 const execAsync = promisify(exec);
 
@@ -24,6 +25,22 @@ export function cancelExecution(executionId: string): boolean {
 
 export function getRunningExecutions(): string[] {
   return Array.from(runningProcesses.keys());
+}
+
+/**
+ * Cancel all running executions (cleanup on app quit)
+ */
+export function cancelAllExecutions(): void {
+  console.log(`[Executor] Cleaning up ${runningProcesses.size} running processes`);
+  for (const [executionId, process] of runningProcesses) {
+    try {
+      console.log(`[Executor] Killing process: ${executionId}`);
+      process.kill('SIGTERM');
+    } catch (err) {
+      console.error(`[Executor] Failed to kill process ${executionId}:`, err);
+    }
+  }
+  runningProcesses.clear();
 }
 
 // Ensure a directory exists
@@ -46,11 +63,22 @@ function getValidCwd(preferredPath: string): string {
   return app.getPath('home');
 }
 
+export interface TokenUsageData {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadInputTokens?: number;
+  cacheCreationInputTokens?: number;
+  contextWindow?: number;
+  maxOutputTokens?: number;
+}
+
 export interface ExecuteResult {
   success: boolean;
   response?: string;
   error?: string;
   duration: number;
+  tokenUsage?: TokenUsageData;
+  costUsd?: number;
 }
 
 export interface ModeStatus {
@@ -354,7 +382,8 @@ class WindowsExecutor implements IExecutor {
 
       const idleChecker = setInterval(() => {
         const idleTime = Date.now() - lastActivity;
-        if (idleTime >= idleTimeout) {
+        if (idleTime >= idleTimeout && !wasCancelled) {
+          wasCancelled = true; // Prevent close handler from also resolving
           clearInterval(idleChecker);
           child.kill();
           if (executionId) runningProcesses.delete(executionId);
@@ -569,19 +598,18 @@ class WindowsExecutor implements IExecutor {
 
       const idleChecker = setInterval(() => {
         const idleTime = Date.now() - lastActivity;
-        if (idleTime >= idleTimeout) {
+        if (idleTime >= idleTimeout && !wasCancelled) {
+          wasCancelled = true; // Prevent close handler from also resolving
           clearInterval(idleChecker);
           child.kill();
           if (executionId) runningProcesses.delete(executionId);
           console.log('[Executor] IDLE TIMEOUT - no activity for', idleTimeout / 1000, 'seconds');
-          BrowserWindow.getAllWindows().forEach((win: Electron.BrowserWindow) => {
-            win.webContents.send('executor-log', {
-              type: 'idle-timeout',
-              idleTime,
-              stdoutLength: stdout.length,
-              executionId,
-              timestamp: new Date().toISOString(),
-            });
+          safeBroadcast('executor-log', {
+            type: 'idle-timeout',
+            idleTime,
+            stdoutLength: stdout.length,
+            executionId,
+            timestamp: new Date().toISOString(),
           });
           resolve({
             success: false,
@@ -1087,19 +1115,18 @@ class WslExecutor implements IExecutor {
 
       const idleChecker = setInterval(() => {
         const idleTime = Date.now() - lastActivity;
-        if (idleTime >= idleTimeout) {
+        if (idleTime >= idleTimeout && !wasCancelled) {
+          wasCancelled = true; // Prevent close handler from also resolving
           clearInterval(idleChecker);
           child.kill();
           if (executionId) runningProcesses.delete(executionId);
           console.log('[Executor] WSL IDLE TIMEOUT - no activity for', idleTimeout / 1000, 'seconds');
-          BrowserWindow.getAllWindows().forEach((win: Electron.BrowserWindow) => {
-            win.webContents.send('executor-log', {
-              type: 'wsl-idle-timeout',
-              idleTime,
-              stdoutLength: stdout.length,
-              executionId,
-              timestamp: new Date().toISOString(),
-            });
+          safeBroadcast('executor-log', {
+            type: 'wsl-idle-timeout',
+            idleTime,
+            stdoutLength: stdout.length,
+            executionId,
+            timestamp: new Date().toISOString(),
           });
           resolve({
             success: false,
@@ -1292,6 +1319,12 @@ export async function getExecutor(): Promise<IExecutor> {
 }
 
 export async function switchExecutor(mode: 'windows' | 'wsl'): Promise<void> {
+  // Cancel any running processes before switching modes
+  if (runningProcesses.size > 0) {
+    console.log(`[Executor] Cancelling ${runningProcesses.size} running processes before mode switch`);
+    cancelAllExecutions();
+  }
+
   settings.set('executionMode', mode);
   currentExecutor = mode === 'wsl' ? new WslExecutor() : new WindowsExecutor();
   await currentExecutor.initialize();

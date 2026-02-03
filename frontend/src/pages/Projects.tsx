@@ -13,21 +13,14 @@ import {
   FileText,
   Compass,
   Loader2,
-  X,
   ChevronDown,
   ChevronRight,
   Sparkles,
-  AlertCircle,
-  Play,
-  Eye,
-  Square,
-  Terminal,
-  Activity,
 } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import CollapsibleHelp from '../components/CollapsibleHelp';
-import type { ProjectBrief, DeepDivePlan, DeepDiveTask } from '../types/gastown';
+import type { ProjectBrief, DeepDivePlan } from '../types/gastown';
 
 interface Project {
   id: string;

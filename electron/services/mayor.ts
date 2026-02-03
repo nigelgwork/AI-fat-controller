@@ -1,8 +1,8 @@
 import Store from 'electron-store';
-import { BrowserWindow } from 'electron';
 import { getExecutor } from './executor';
 import { listTasks, updateTask, getTaskById } from './tasks';
 import type { Task } from './tasks';
+import { safeBroadcast } from '../utils/safe-ipc';
 
 // Generate a simple unique ID
 function generateId(): string {
@@ -94,21 +94,15 @@ function getStore(): Store<MayorStore> {
 // Notify renderer of state changes
 function notifyStateChanged(): void {
   const state = getMayorState();
-  BrowserWindow.getAllWindows().forEach((win) => {
-    win.webContents.send('mayor:stateChanged', state);
-  });
+  safeBroadcast('mayor:stateChanged', state);
 }
 
 function notifyApprovalRequired(request: ApprovalRequest): void {
-  BrowserWindow.getAllWindows().forEach((win) => {
-    win.webContents.send('mayor:approvalRequired', request);
-  });
+  safeBroadcast('mayor:approvalRequired', request);
 }
 
 function notifyActionCompleted(log: ActionLog): void {
-  BrowserWindow.getAllWindows().forEach((win) => {
-    win.webContents.send('mayor:actionCompleted', log);
-  });
+  safeBroadcast('mayor:actionCompleted', log);
 }
 
 // State management

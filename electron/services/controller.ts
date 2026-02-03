@@ -1,8 +1,8 @@
 import Store from 'electron-store';
-import { BrowserWindow } from 'electron';
 import { getExecutor } from './executor';
 import { listTasks, updateTask, getTaskById } from './tasks';
 import type { Task } from './tasks';
+import { safeBroadcast } from '../utils/safe-ipc';
 
 // Generate a simple unique ID
 function generateId(): string {
@@ -89,16 +89,19 @@ interface ControllerStore {
   actionLogs: ActionLog[];
 }
 
+// Default context window - will be updated with real value from Claude API
+const DEFAULT_CONTEXT_WINDOW = 200000;
+
 const defaultTokenUsage: TokenUsage = {
   inputTokens: 0,
   outputTokens: 0,
-  limit: 100000,
+  limit: DEFAULT_CONTEXT_WINDOW,
   resetAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour from now
 };
 
 const defaultUsageLimitConfig: UsageLimitConfig = {
-  maxTokensPerHour: 100000,
-  maxTokensPerDay: 500000,
+  maxTokensPerHour: DEFAULT_CONTEXT_WINDOW,
+  maxTokensPerDay: DEFAULT_CONTEXT_WINDOW * 5,
   pauseThreshold: 0.8,
   warningThreshold: 0.6,
   autoResumeOnReset: true,
@@ -153,27 +156,19 @@ function getStore(): Store<ControllerStore> {
 // Notify renderer of state changes
 function notifyStateChanged(): void {
   const state = getControllerState();
-  BrowserWindow.getAllWindows().forEach((win) => {
-    win.webContents.send('controller:stateChanged', state);
-  });
+  safeBroadcast('controller:stateChanged', state);
 }
 
 function notifyApprovalRequired(request: ApprovalRequest): void {
-  BrowserWindow.getAllWindows().forEach((win) => {
-    win.webContents.send('controller:approvalRequired', request);
-  });
+  safeBroadcast('controller:approvalRequired', request);
 }
 
 function notifyActionCompleted(log: ActionLog): void {
-  BrowserWindow.getAllWindows().forEach((win) => {
-    win.webContents.send('controller:actionCompleted', log);
-  });
+  safeBroadcast('controller:actionCompleted', log);
 }
 
 function notifyProgressUpdated(progress: ProgressState | null): void {
-  BrowserWindow.getAllWindows().forEach((win) => {
-    win.webContents.send('controller:progressUpdated', progress);
-  });
+  safeBroadcast('controller:progressUpdated', progress);
 }
 
 // State management
@@ -209,9 +204,7 @@ export function clearProgress(): void {
 
 // Token usage management
 function notifyUsageWarning(status: UsageLimitStatus, percentage: number): void {
-  BrowserWindow.getAllWindows().forEach((win) => {
-    win.webContents.send('controller:usageWarning', { status, percentage });
-  });
+  safeBroadcast('controller:usageWarning', { status, percentage });
 }
 
 function checkUsageLimits(hourlyTotal: number, dailyTotal: number, config: UsageLimitConfig): UsageLimitStatus {
@@ -225,16 +218,28 @@ function checkUsageLimits(hourlyTotal: number, dailyTotal: number, config: Usage
   return 'ok';
 }
 
-export function updateTokenUsage(input: number, output: number): void {
+export function updateTokenUsage(input: number, output: number, contextWindow?: number): void {
   const current = getControllerState();
   const today = getToday();
   const totalTokens = input + output;
+
+  // Update limits if we got real context window from Claude API
+  let usageLimitConfig = current.usageLimitConfig;
+  if (contextWindow && contextWindow !== usageLimitConfig.maxTokensPerHour) {
+    usageLimitConfig = {
+      ...usageLimitConfig,
+      maxTokensPerHour: contextWindow,
+      maxTokensPerDay: contextWindow * 5,
+    };
+    console.log(`[Controller] Updated token limits from Claude API: ${contextWindow} per hour, ${contextWindow * 5} per day`);
+  }
 
   // Handle hourly reset
   let newUsage: TokenUsage = {
     ...current.tokenUsage,
     inputTokens: current.tokenUsage.inputTokens + input,
     outputTokens: current.tokenUsage.outputTokens + output,
+    limit: contextWindow || current.tokenUsage.limit,
   };
 
   let shouldResetHourly = false;
@@ -243,7 +248,7 @@ export function updateTokenUsage(input: number, output: number): void {
     newUsage = {
       inputTokens: input,
       outputTokens: output,
-      limit: current.usageLimitConfig.maxTokensPerHour,
+      limit: contextWindow || usageLimitConfig.maxTokensPerHour,
       resetAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     };
   }
@@ -264,15 +269,15 @@ export function updateTokenUsage(input: number, output: number): void {
   const hourlyTotal = newUsage.inputTokens + newUsage.outputTokens;
   const dailyTotal = dailyUsage.input + dailyUsage.output;
 
-  // Check limits
+  // Check limits using potentially updated config
   const previousStatus = current.usageLimitStatus;
-  const newStatus = checkUsageLimits(hourlyTotal, dailyTotal, current.usageLimitConfig);
+  const newStatus = checkUsageLimits(hourlyTotal, dailyTotal, usageLimitConfig);
 
   // Notify if status changed
   if (newStatus !== previousStatus && newStatus !== 'ok') {
     const percentage = Math.max(
-      hourlyTotal / current.usageLimitConfig.maxTokensPerHour,
-      dailyTotal / current.usageLimitConfig.maxTokensPerDay
+      hourlyTotal / usageLimitConfig.maxTokensPerHour,
+      dailyTotal / usageLimitConfig.maxTokensPerDay
     ) * 100;
     notifyUsageWarning(newStatus, Math.round(percentage));
   }
@@ -301,6 +306,7 @@ export function updateTokenUsage(input: number, output: number): void {
     dailyTokenUsage: dailyUsage,
     usageLimitStatus: newStatus,
     pausedDueToLimit,
+    usageLimitConfig, // Include updated config with real limits from Claude API
   };
 
   // Only update status if it changed
@@ -512,10 +518,18 @@ async function processTask(task: Task): Promise<void> {
 
     const duration = Date.now() - startTime;
 
-    // Estimate token usage (rough estimate if not provided)
-    const estimatedInputTokens = Math.ceil(prompt.length / 4);
-    const estimatedOutputTokens = result.response ? Math.ceil(result.response.length / 4) : 0;
-    updateTokenUsage(estimatedInputTokens, estimatedOutputTokens);
+    // Use real token usage from Claude API response
+    if (result.tokenUsage) {
+      const totalInput = result.tokenUsage.inputTokens +
+        (result.tokenUsage.cacheReadInputTokens || 0) +
+        (result.tokenUsage.cacheCreationInputTokens || 0);
+      updateTokenUsage(totalInput, result.tokenUsage.outputTokens, result.tokenUsage.contextWindow);
+    } else {
+      // Fallback to estimate if not provided (shouldn't happen with JSON output)
+      const estimatedInputTokens = Math.ceil(prompt.length / 4);
+      const estimatedOutputTokens = result.response ? Math.ceil(result.response.length / 4) : 0;
+      updateTokenUsage(estimatedInputTokens, estimatedOutputTokens);
+    }
 
     if (!result.success) {
       // Task failed

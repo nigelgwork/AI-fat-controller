@@ -1,10 +1,10 @@
-import { BrowserWindow } from 'electron';
 import { getExecutor } from './executor';
 import { captureScreen, analyzeScreenshot } from './screenshot';
 import { getMCPManager, WindowsAutomationMCP } from './mcp-client';
 import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
+import { safeBroadcast } from '../utils/safe-ipc';
 
 // Execution mode for tests
 export type TestExecutionMode = 'mcp-direct' | 'claude-assisted' | 'hybrid';
@@ -111,15 +111,11 @@ function getResultsDir(): string {
 
 // Notify renderer of test progress
 function notifyTestProgress(data: { scenarioId: string; stepIndex: number; totalSteps: number; status: string }): void {
-  BrowserWindow.getAllWindows().forEach((win) => {
-    win.webContents.send('gui-test:progress', data);
-  });
+  safeBroadcast('gui-test:progress', data);
 }
 
 function notifyTestComplete(result: TestResult): void {
-  BrowserWindow.getAllWindows().forEach((win) => {
-    win.webContents.send('gui-test:complete', result);
-  });
+  safeBroadcast('gui-test:complete', result);
 }
 
 // Build the prompt for Claude to execute a test step using Windows MCP

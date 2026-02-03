@@ -13,6 +13,7 @@ import Setup from './pages/Setup';
 import TmuxSessions from './pages/TmuxSessions';
 import ClawdbotSettings from './pages/ClawdbotSettings';
 import FloatingAssistant from './components/FloatingAssistant';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   const [hasCompletedSetup, setHasCompletedSetup] = useState<boolean | null>(null);
@@ -42,7 +43,7 @@ function App() {
   }
 
   return (
-    <>
+    <ErrorBoundary>
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
@@ -58,7 +59,7 @@ function App() {
         </Route>
       </Routes>
       <FloatingAssistant />
-    </>
+    </ErrorBoundary>
   );
 }
 

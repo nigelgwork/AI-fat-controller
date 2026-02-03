@@ -1,5 +1,6 @@
 import Store from 'electron-store';
-import { BrowserWindow, Notification } from 'electron';
+import { Notification } from 'electron';
+import { safeBroadcast } from '../utils/safe-ipc';
 
 // Types
 export interface NtfyConfig {
@@ -407,15 +408,11 @@ export async function notifyControllerStatus(
 
 // Window notifications
 function notifyQuestionAsked(question: PendingQuestion): void {
-  BrowserWindow.getAllWindows().forEach((win) => {
-    win.webContents.send('ntfy:questionAsked', question);
-  });
+  safeBroadcast('ntfy:questionAsked', question);
 }
 
 function notifyQuestionAnswered(question: PendingQuestion): void {
-  BrowserWindow.getAllWindows().forEach((win) => {
-    win.webContents.send('ntfy:questionAnswered', question);
-  });
+  safeBroadcast('ntfy:questionAnswered', question);
 }
 
 // Test connection

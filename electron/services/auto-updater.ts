@@ -232,3 +232,14 @@ export function getUpdateStatus(): UpdateStatus {
 export function getCurrentVersion(): string {
   return app.getVersion();
 }
+
+/**
+ * Stop the auto-updater (cleanup on app quit)
+ */
+export function stopAutoUpdater(): void {
+  if (updateCheckInterval) {
+    clearInterval(updateCheckInterval);
+    updateCheckInterval = null;
+  }
+  mainWindow = null;
+}
