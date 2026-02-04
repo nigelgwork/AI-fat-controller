@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import {
-  Terminal, RefreshCw, Activity, FolderGit, Clock, Cpu, FileCode, Bot
+  Terminal, RefreshCw, Activity, FolderGit, Clock, Cpu, FileCode, Bot,
+  History, Copy, Check, MessageSquare, RotateCcw
 } from 'lucide-react';
-import type { ClaudeSession, Project } from '../types/electron';
+import type { ClaudeSession, Project, ClaudeCodeSession } from '../types/electron';
 import CollapsibleHelp from '../components/CollapsibleHelp';
 
 function formatStartTime(isoString: string): string {
@@ -52,16 +54,28 @@ export default function Sessions() {
     queryFn: () => window.electronAPI?.listProjects() as Promise<Project[]>,
   });
 
+  // Resumable sessions from ~/.claude/projects/
+  const { data: resumableSessions, refetch: refetchResumable } = useQuery({
+    queryKey: ['resumable-claude-sessions'],
+    queryFn: () => window.electronAPI?.getRecentClaudeSessions?.(10) as Promise<ClaudeCodeSession[]>,
+    staleTime: 60000, // Refresh every minute
+  });
+
   const runningSessions = sessions?.filter(s => s.status === 'running') || [];
   const recentSessions = sessions?.filter(s => s.status === 'recent') || [];
   const claudeProjects = projects?.filter(p => p.hasClaude) || [];
+
+  const handleRefresh = () => {
+    refetchSessions();
+    refetchResumable();
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-white">Claude Code Sessions</h2>
         <button
-          onClick={() => refetchSessions()}
+          onClick={handleRefresh}
           disabled={isLoadingSessions}
           className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors"
         >
@@ -123,6 +137,29 @@ export default function Sessions() {
         </div>
       )}
 
+      {/* Resumable Sessions */}
+      {resumableSessions && resumableSessions.length > 0 && (
+        <div className="bg-slate-800 rounded-lg border border-slate-700">
+          <div className="p-4 border-b border-slate-700">
+            <h3 className="font-semibold text-white flex items-center gap-2">
+              <History size={18} className="text-cyan-400" />
+              Resumable Sessions
+              <span className="px-2 py-0.5 bg-cyan-500/20 text-cyan-400 text-xs rounded">
+                {resumableSessions.length} sessions
+              </span>
+            </h3>
+            <p className="text-sm text-slate-400 mt-1">
+              Past conversations that can be resumed with <code className="bg-slate-700 px-1 rounded">--resume</code>
+            </p>
+          </div>
+          <div className="divide-y divide-slate-700">
+            {resumableSessions.map((session) => (
+              <ResumableSessionCard key={session.sessionId} session={session} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Claude-Enabled Projects */}
       {claudeProjects.length > 0 && (
         <div className="bg-slate-800 rounded-lg border border-slate-700">
@@ -166,8 +203,8 @@ export default function Sessions() {
             <p>Sessions from the last 24 hours based on ~/.claude/projects/ history.</p>
           </div>
           <div>
-            <p className="text-white font-medium mb-1">Detection Sources</p>
-            <p>Windows processes, WSL processes, and session history files are all scanned.</p>
+            <p className="text-white font-medium mb-1">Resumable Sessions</p>
+            <p>Past conversations stored in ~/.claude/projects/ that can be resumed with <code className="bg-slate-700 px-1 rounded">claude --resume &lt;id&gt;</code>. Context is preserved.</p>
           </div>
           <div>
             <p className="text-white font-medium mb-1">CLAUDE.md Projects</p>
@@ -260,6 +297,101 @@ function SessionCard({ session, isRecent }: SessionCardProps) {
               Session: {session.sessionId}
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface ResumableSessionCardProps {
+  session: ClaudeCodeSession;
+}
+
+function ResumableSessionCard({ session }: ResumableSessionCardProps) {
+  const [copied, setCopied] = useState(false);
+
+  const resumeCommand = `claude --resume ${session.sessionId}`;
+
+  const handleCopyCommand = async () => {
+    try {
+      await navigator.clipboard.writeText(resumeCommand);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  return (
+    <div className="p-4 hover:bg-slate-700/30 transition-colors">
+      <div className="flex items-start gap-4">
+        {/* Icon */}
+        <div className="mt-1 p-2 rounded-lg bg-cyan-500/20">
+          <RotateCcw size={20} className="text-cyan-400" />
+        </div>
+
+        {/* Main content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="font-medium text-white">
+              {session.projectName || 'Claude Session'}
+            </span>
+            {session.messageCount && (
+              <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-slate-600 text-slate-300">
+                <MessageSquare size={12} />
+                {session.messageCount} messages
+              </span>
+            )}
+          </div>
+
+          {/* Preview */}
+          {session.lastMessagePreview && (
+            <p className="text-sm text-slate-400 truncate mt-1">
+              {session.lastMessagePreview}
+            </p>
+          )}
+
+          {/* Details */}
+          <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
+            {session.projectPath && (
+              <div className="flex items-center gap-1 truncate">
+                <FolderGit size={14} />
+                <span className="truncate">{session.projectPath}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <Clock size={14} />
+              <span>{formatStartTime(session.lastModifiedAt)}</span>
+            </div>
+          </div>
+
+          {/* Resume command */}
+          <div className="mt-3 flex items-center gap-2">
+            <code className="flex-1 px-3 py-1.5 bg-slate-900 rounded text-xs font-mono text-cyan-400 truncate">
+              {resumeCommand}
+            </code>
+            <button
+              onClick={handleCopyCommand}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded text-xs transition-colors ${
+                copied
+                  ? 'bg-green-500/20 text-green-400'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+              title="Copy resume command"
+            >
+              {copied ? (
+                <>
+                  <Check size={14} />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy size={14} />
+                  Copy
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>
