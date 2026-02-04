@@ -1,6 +1,9 @@
 import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import { BrowserWindow, app } from 'electron';
 import { settings } from './settings';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('AutoUpdater');
 
 export interface UpdateStatus {
   checking: boolean;
@@ -41,13 +44,13 @@ export function initAutoUpdater(window: BrowserWindow): void {
 
   // Set up event handlers
   autoUpdater.on('checking-for-update', () => {
-    console.log('[AutoUpdater] Checking for updates...');
+    log.info('[AutoUpdater] Checking for updates...');
     updateStatus = { ...updateStatus, checking: true, error: null };
     notifyRenderer('update:checking');
   });
 
   autoUpdater.on('update-available', (info: UpdateInfo) => {
-    console.log(`[AutoUpdater] Update available: ${info.version}`);
+    log.info(`[AutoUpdater] Update available: ${info.version}`);
     updateStatus = {
       ...updateStatus,
       checking: false,
@@ -62,14 +65,14 @@ export function initAutoUpdater(window: BrowserWindow): void {
   });
 
   autoUpdater.on('update-not-available', () => {
-    console.log('[AutoUpdater] No update available');
+    log.info('[AutoUpdater] No update available');
     updateStatus = { ...updateStatus, checking: false, available: false };
     notifyRenderer('update:not-available');
   });
 
   autoUpdater.on('download-progress', (progress: ProgressInfo) => {
     const percent = Math.round(progress.percent);
-    console.log(`[AutoUpdater] Download progress: ${percent}%`);
+    log.info(`[AutoUpdater] Download progress: ${percent}%`);
     updateStatus = {
       ...updateStatus,
       downloading: true,
@@ -84,7 +87,7 @@ export function initAutoUpdater(window: BrowserWindow): void {
   });
 
   autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
-    console.log(`[AutoUpdater] Update downloaded: ${info.version}`);
+    log.info(`[AutoUpdater] Update downloaded: ${info.version}`);
     updateStatus = {
       ...updateStatus,
       downloading: false,
@@ -96,7 +99,7 @@ export function initAutoUpdater(window: BrowserWindow): void {
   });
 
   autoUpdater.on('error', (error: Error) => {
-    console.error('[AutoUpdater] Error:', error.message);
+    log.error('[AutoUpdater] Error:', error.message);
     updateStatus = {
       ...updateStatus,
       checking: false,
@@ -132,7 +135,7 @@ function startPeriodicUpdateCheck(): void {
 
     if (timeSinceCheck < UPDATE_CHECK_INTERVAL) {
       const nextCheckDelay = UPDATE_CHECK_INTERVAL - timeSinceCheck;
-      console.log(`[AutoUpdater] Next check in ${Math.round(nextCheckDelay / 1000 / 60)} minutes`);
+      log.info(`[AutoUpdater] Next check in ${Math.round(nextCheckDelay / 1000 / 60)} minutes`);
       setTimeout(() => {
         performUpdateCheck();
         startUpdateCheckInterval();
@@ -166,11 +169,11 @@ function startUpdateCheckInterval(): void {
  */
 async function performUpdateCheck(): Promise<void> {
   try {
-    console.log('[AutoUpdater] Performing update check...');
+    log.info('[AutoUpdater] Performing update check...');
     settings.set('lastUpdateCheck', new Date().toISOString());
     await autoUpdater.checkForUpdates();
   } catch (error) {
-    console.error('[AutoUpdater] Update check failed:', error);
+    log.error('[AutoUpdater] Update check failed:', error);
   }
 }
 

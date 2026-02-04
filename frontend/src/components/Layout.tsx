@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import ModeToggle from './ModeToggle';
 import UpdateBanner from './UpdateBanner';
+import ThemeToggle from './ThemeToggle';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -69,6 +70,7 @@ export default function Layout() {
           <h1 className="text-lg font-semibold text-white">Phat Controller</h1>
           <div className="flex items-center gap-4">
             <UpdateBanner />
+            <ThemeToggle compact />
             <ModeToggle />
             {version && (
               <span className="text-xs text-slate-500 font-mono">v{version}</span>

@@ -355,6 +355,22 @@ export interface TmuxStatus {
   message: string;
 }
 
+// Token history types
+export interface HourlyUsage {
+  hour: number;
+  input: number;
+  output: number;
+}
+
+export interface DailyTokenUsage {
+  date: string;
+  hourlyUsage: HourlyUsage[];
+  dailyTotal: {
+    input: number;
+    output: number;
+  };
+}
+
 // Clawdbot personality types
 export type TraitLevel = 'low' | 'medium' | 'high';
 
@@ -660,6 +676,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getClawdbotGreeting: (): Promise<string> =>
     ipcRenderer.invoke('clawdbot:getGreeting'),
 
+  // Token History
+  getTokenHistory: (days?: number): Promise<DailyTokenUsage[]> =>
+    ipcRenderer.invoke('tokenHistory:get', days),
+  getTokenHistoryTotal: (days?: number): Promise<{ input: number; output: number }> =>
+    ipcRenderer.invoke('tokenHistory:getTotal', days),
+  getTokenHistoryAverage: (days?: number): Promise<{ input: number; output: number }> =>
+    ipcRenderer.invoke('tokenHistory:getAverage', days),
+  clearTokenHistory: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('tokenHistory:clear'),
+
   // Event listeners
   onUpdateChecking: (callback: () => void) => {
     const handler = () => callback();
@@ -947,6 +973,11 @@ declare global {
       savePersonality: (personality: Omit<ClawdbotPersonality, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => Promise<ClawdbotPersonality>;
       deletePersonality: (id: string) => Promise<boolean>;
       getClawdbotGreeting: () => Promise<string>;
+      // Token History
+      getTokenHistory: (days?: number) => Promise<DailyTokenUsage[]>;
+      getTokenHistoryTotal: (days?: number) => Promise<{ input: number; output: number }>;
+      getTokenHistoryAverage: (days?: number) => Promise<{ input: number; output: number }>;
+      clearTokenHistory: () => Promise<{ success: boolean }>;
     };
   }
 }

@@ -1,7 +1,9 @@
 import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import Store from 'electron-store';
+import { createLogger } from '../utils/logger';
 
+const log = createLogger('Tmux');
 const execAsync = promisify(exec);
 
 // Check if running on Windows
@@ -167,7 +169,7 @@ export async function listSessions(): Promise<TmuxSession[]> {
 
     return sessions;
   } catch (error) {
-    console.error('[Tmux] Failed to list sessions:', error);
+    log.error('[Tmux] Failed to list sessions:', error);
     return [];
   }
 }
@@ -202,7 +204,7 @@ export async function createSession(
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[Tmux] Failed to create session:', message);
+    log.error('[Tmux] Failed to create session:', message);
     return { success: false, error: message };
   }
 }
@@ -278,7 +280,7 @@ export async function attachSession(name: string): Promise<{ success: boolean; e
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[Tmux] Failed to attach session:', message);
+    log.error('[Tmux] Failed to attach session:', message);
     return { success: false, error: message };
   }
 }
@@ -298,7 +300,7 @@ export async function killSession(name: string): Promise<{ success: boolean; err
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[Tmux] Failed to kill session:', message);
+    log.error('[Tmux] Failed to kill session:', message);
     return { success: false, error: message };
   }
 }
@@ -321,7 +323,7 @@ export async function getSessionHistory(
     return { success: true, content: stdout };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[Tmux] Failed to get session history:', message);
+    log.error('[Tmux] Failed to get session history:', message);
     return { success: false, error: message };
   }
 }
@@ -341,7 +343,7 @@ export async function sendKeys(
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[Tmux] Failed to send keys:', message);
+    log.error('[Tmux] Failed to send keys:', message);
     return { success: false, error: message };
   }
 }
@@ -393,7 +395,7 @@ export async function renameSession(
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[Tmux] Failed to rename session:', message);
+    log.error('[Tmux] Failed to rename session:', message);
     return { success: false, error: message };
   }
 }

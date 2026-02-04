@@ -1,6 +1,9 @@
 import Store from 'electron-store';
 import { Notification } from 'electron';
 import { safeBroadcast } from '../utils/safe-ipc';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('Ntfy');
 
 // Types
 export interface NtfyConfig {
@@ -156,13 +159,13 @@ export async function sendNotification(
     });
 
     if (!response.ok) {
-      console.error('Failed to send ntfy notification:', response.statusText);
+      log.error('Failed to send ntfy notification:', response.statusText);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Error sending ntfy notification:', error);
+    log.error('Error sending ntfy notification:', error);
     return false;
   }
 }
@@ -308,7 +311,7 @@ export function startPolling(): void {
       const response = await fetch(pollUrl, { headers });
 
       if (!response.ok) {
-        console.error('Ntfy polling error:', response.statusText);
+        log.error('Ntfy polling error:', response.statusText);
         return;
       }
 
@@ -346,11 +349,11 @@ export function startPolling(): void {
             answerQuestion(payload.questionId, payload.answer);
           }
         } catch (err) {
-          console.error('Error parsing ntfy event:', err);
+          log.error('Error parsing ntfy event:', err);
         }
       }
     } catch (error) {
-      console.error('Ntfy polling error:', error);
+      log.error('Ntfy polling error:', error);
     }
   }, 5000); // Poll every 5 seconds
 }

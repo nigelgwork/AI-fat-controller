@@ -6,6 +6,49 @@
   --board-bg: #0F172A;
   --board-panel: #1E293B;
   --board-border: #334155;
+  --text-primary: #ffffff;
+  --text-secondary: #94a3b8;
+  --accent: #22d3ee;
+}
+
+/* Light theme */
+.light-theme {
+  --board-bg: #f1f5f9;
+  --board-panel: #ffffff;
+  --board-border: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --accent: #0891b2;
+}
+
+.light-theme body,
+.light-theme {
+  background-color: var(--board-bg);
+  color: var(--text-primary);
+}
+
+/* Light theme overrides for Tailwind classes */
+.light-theme .bg-slate-900 {
+  background-color: var(--board-panel) !important;
+}
+
+.light-theme .bg-slate-800 {
+  background-color: var(--board-panel) !important;
+  border-color: var(--board-border) !important;
+}
+
+.light-theme .text-white {
+  color: var(--text-primary) !important;
+}
+
+.light-theme .text-slate-400,
+.light-theme .text-slate-300 {
+  color: var(--text-secondary) !important;
+}
+
+.light-theme .border-slate-700,
+.light-theme .border-slate-600 {
+  border-color: var(--board-border) !important;
 }
 
 body {

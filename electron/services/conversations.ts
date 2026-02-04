@@ -1,6 +1,9 @@
 import { app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('Conversations');
 
 // Types
 export interface ConversationEntry {
@@ -68,7 +71,7 @@ function loadSessionsIndex(): SessionsIndex {
     const content = fs.readFileSync(indexPath, 'utf-8');
     return JSON.parse(content) as SessionsIndex;
   } catch (error) {
-    console.error('Failed to load sessions index:', error);
+    log.error('Failed to load sessions index:', error);
     return { sessions: [] };
   }
 }
@@ -176,7 +179,7 @@ export function loadConversation(
 
     return entries;
   } catch (error) {
-    console.error('Failed to load conversation:', error);
+    log.error('Failed to load conversation:', error);
     return [];
   }
 }

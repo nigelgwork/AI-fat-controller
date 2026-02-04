@@ -3,6 +3,9 @@ import path from 'path';
 import { app } from 'electron';
 import { ChildProcess } from 'child_process';
 import { runningProcesses, TokenUsageData } from './types';
+import { createLogger } from '../../utils/logger';
+
+const log = createLogger('Executor');
 
 /**
  * Cancel a specific execution by ID
@@ -10,7 +13,7 @@ import { runningProcesses, TokenUsageData } from './types';
 export function cancelExecution(executionId: string): boolean {
   const process = runningProcesses.get(executionId);
   if (process) {
-    console.log('[Executor] Cancelling execution:', executionId);
+    log.info('[Executor] Cancelling execution:', executionId);
     process.kill('SIGTERM');
     runningProcesses.delete(executionId);
     return true;
@@ -29,13 +32,13 @@ export function getRunningExecutions(): string[] {
  * Cancel all running executions (cleanup on app quit)
  */
 export function cancelAllExecutions(): void {
-  console.log(`[Executor] Cleaning up ${runningProcesses.size} running processes`);
+  log.info(`[Executor] Cleaning up ${runningProcesses.size} running processes`);
   for (const [executionId, process] of runningProcesses) {
     try {
-      console.log(`[Executor] Killing process: ${executionId}`);
+      log.info(`[Executor] Killing process: ${executionId}`);
       process.kill('SIGTERM');
     } catch (err) {
-      console.error(`[Executor] Failed to kill process ${executionId}:`, err);
+      log.error(`[Executor] Failed to kill process ${executionId}:`, err);
     }
   }
   runningProcesses.clear();
@@ -50,7 +53,7 @@ export function ensureDir(dirPath: string): void {
       fs.mkdirSync(dirPath, { recursive: true });
     }
   } catch (err) {
-    console.error(`Failed to create directory ${dirPath}:`, err);
+    log.error(`Failed to create directory ${dirPath}:`, err);
   }
 }
 
@@ -67,7 +70,7 @@ export function getValidCwd(preferredPath: string): string {
 /**
  * Parse token usage data from Claude's JSON response
  */
-export function parseTokenUsage(json: any): TokenUsageData {
+export function parseTokenUsage(json: Record<string, unknown>): TokenUsageData {
   const usage = json.usage || {};
   const modelUsage = json.modelUsage || {};
   const modelKeys = Object.keys(modelUsage);

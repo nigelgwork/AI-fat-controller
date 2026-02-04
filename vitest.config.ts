@@ -7,12 +7,15 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
-    setupFiles: ["./src/test/setup.ts"],
-    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    setupFiles: ["./frontend/src/test/setup.ts"],
+    include: [
+      "frontend/src/**/*.{test,spec}.{ts,tsx}",
+      "electron/**/*.{test,spec}.ts",
+    ],
   },
   resolve: {
     alias: {
-      "@": resolve(__dirname, "./src"),
+      "@": resolve(__dirname, "./frontend/src"),
     },
   },
 });

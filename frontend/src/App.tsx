@@ -14,9 +14,18 @@ import TmuxSessions from './pages/TmuxSessions';
 import ClawdbotSettings from './pages/ClawdbotSettings';
 import FloatingAssistant from './components/FloatingAssistant';
 import ErrorBoundary from './components/ErrorBoundary';
+import CommandPalette from './components/CommandPalette';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 function App() {
   const [hasCompletedSetup, setHasCompletedSetup] = useState<boolean | null>(null);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+  // Initialize keyboard shortcuts
+  useKeyboardShortcuts({
+    enabled: hasCompletedSetup === true,
+    onOpenCommandPalette: () => setIsCommandPaletteOpen(true),
+  });
 
   useEffect(() => {
     // Check if setup has been completed
@@ -59,6 +68,10 @@ function App() {
         </Route>
       </Routes>
       <FloatingAssistant />
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+      />
     </ErrorBoundary>
   );
 }

@@ -15,6 +15,9 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { app } from 'electron';
 import { EventEmitter } from 'events';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('MCP');
 
 // MCP Protocol Types
 export interface MCPRequest {
@@ -168,7 +171,7 @@ export class MCPClient extends EventEmitter {
       });
 
       this.process.stderr?.on('data', (data: Buffer) => {
-        console.error(`[MCP ${this.config.name}] stderr:`, data.toString());
+        log.error(`[MCP ${this.config.name}] stderr:`, data.toString());
       });
 
       this.process.on('error', (error) => {
@@ -228,7 +231,7 @@ export class MCPClient extends EventEmitter {
           const message = JSON.parse(line);
           this.handleMessage(message);
         } catch (error) {
-          console.error(`[MCP ${this.config.name}] Failed to parse message:`, line);
+          log.error(`[MCP ${this.config.name}] Failed to parse message:`, line);
         }
       }
     }
@@ -239,7 +242,7 @@ export class MCPClient extends EventEmitter {
       const message = JSON.parse(data.toString());
       this.handleMessage(message);
     } catch (error) {
-      console.error(`[MCP ${this.config.name}] Failed to parse WebSocket message`);
+      log.error(`[MCP ${this.config.name}] Failed to parse WebSocket message`);
     }
   }
 
@@ -521,7 +524,7 @@ export class MCPServerManager {
         this.configs = JSON.parse(fs.readFileSync(this.configPath, 'utf-8'));
       }
     } catch (error) {
-      console.error('Failed to load MCP server configs:', error);
+      log.error('Failed to load MCP server configs:', error);
       this.configs = [];
     }
   }
@@ -604,9 +607,9 @@ export class MCPServerManager {
     for (const config of toConnect) {
       try {
         await this.connect(config.name);
-        console.log(`[MCP] Auto-connected to ${config.name}`);
+        log.info(`[MCP] Auto-connected to ${config.name}`);
       } catch (error) {
-        console.error(`[MCP] Failed to auto-connect to ${config.name}:`, error);
+        log.error(`[MCP] Failed to auto-connect to ${config.name}:`, error);
       }
     }
   }

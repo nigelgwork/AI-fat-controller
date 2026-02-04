@@ -6,6 +6,9 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { settings } from './settings';
 import { safeBroadcast } from '../utils/safe-ipc';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('Executor');
 
 const execAsync = promisify(exec);
 
@@ -15,7 +18,7 @@ const runningProcesses = new Map<string, ChildProcess>();
 export function cancelExecution(executionId: string): boolean {
   const process = runningProcesses.get(executionId);
   if (process) {
-    console.log('[Executor] Cancelling execution:', executionId);
+    log.info('[Executor] Cancelling execution:', executionId);
     process.kill('SIGTERM');
     runningProcesses.delete(executionId);
     return true;
@@ -31,13 +34,13 @@ export function getRunningExecutions(): string[] {
  * Cancel all running executions (cleanup on app quit)
  */
 export function cancelAllExecutions(): void {
-  console.log(`[Executor] Cleaning up ${runningProcesses.size} running processes`);
+  log.info(`[Executor] Cleaning up ${runningProcesses.size} running processes`);
   for (const [executionId, process] of runningProcesses) {
     try {
-      console.log(`[Executor] Killing process: ${executionId}`);
+      log.info(`[Executor] Killing process: ${executionId}`);
       process.kill('SIGTERM');
     } catch (err) {
-      console.error(`[Executor] Failed to kill process ${executionId}:`, err);
+      log.error(`[Executor] Failed to kill process ${executionId}`, err);
     }
   }
   runningProcesses.clear();
@@ -50,7 +53,7 @@ function ensureDir(dirPath: string): void {
       fs.mkdirSync(dirPath, { recursive: true });
     }
   } catch (err) {
-    console.error(`Failed to create directory ${dirPath}:`, err);
+    log.error(`Failed to create directory ${dirPath}:`, err);
   }
 }
 
@@ -122,16 +125,16 @@ class WindowsExecutor implements IExecutor {
     this.gtPath = path.join(resourcesPath, 'gt.exe');
     this.bdPath = path.join(resourcesPath, 'bd.exe');
 
-    console.log('[Executor] Initialized WindowsExecutor');
-    console.log('[Executor] Claude path:', this.claudePath);
-    console.log('[Executor] gt path:', this.gtPath, '- exists:', fs.existsSync(this.gtPath));
-    console.log('[Executor] bd path:', this.bdPath, '- exists:', fs.existsSync(this.bdPath));
+    log.info('[Executor] Initialized WindowsExecutor');
+    log.info('[Executor] Claude path:', this.claudePath);
+    log.info('[Executor] gt path:', this.gtPath, '- exists:', fs.existsSync(this.gtPath));
+    log.info('[Executor] bd path:', this.bdPath, '- exists:', fs.existsSync(this.bdPath));
 
     // Gas Town workspace - ensure it exists
     this.gastownPath = settings.get('gastownPath') as string ||
       path.join(app.getPath('home'), 'gt');
     ensureDir(this.gastownPath);
-    console.log('[Executor] Gastown path:', this.gastownPath);
+    log.info('[Executor] Gastown path:', this.gastownPath);
   }
 
   private async findWindowsClaude(): Promise<string> {
@@ -199,7 +202,7 @@ class WindowsExecutor implements IExecutor {
 
     // Convert project path to Windows-accessible path
     const cwd = this.toWindowsPath(projectPath || this.gastownPath);
-    console.log('[Executor] Windows cwd:', cwd, '(from:', projectPath, ')');
+    log.info('[Executor] Windows cwd:', cwd, '(from:', projectPath, ')');
 
     // Use spawn without stdin since prompt is passed as argument
     return this.spawnCommandWithJsonParsing(this.claudePath, args, cwd, start, 120000, executionId);  // 2 min idle timeout
@@ -217,11 +220,11 @@ class WindowsExecutor implements IExecutor {
     return new Promise((resolve) => {
       const validCwd = getValidCwd(cwd);
 
-      console.log('[Executor] Running Claude with stdin in:', validCwd);
-      console.log('[Executor] Command:', cmd);
-      console.log('[Executor] Args:', args);
-      console.log('[Executor] Stdin length:', stdinData.length);
-      if (executionId) console.log('[Executor] Execution ID:', executionId);
+      log.info('[Executor] Running Claude with stdin in:', validCwd);
+      log.info('[Executor] Command:', cmd);
+      log.info('[Executor] Args:', args);
+      log.info('[Executor] Stdin length:', stdinData.length);
+      if (executionId) log.info('[Executor] Execution ID:', executionId);
 
       // Send to renderer for debugging
       safeBroadcast('executor-log', {
@@ -253,11 +256,11 @@ class WindowsExecutor implements IExecutor {
 
       child.stdout?.on('data', (data) => {
         stdout += data;
-        console.log('[Executor] stdout chunk:', data.toString().substring(0, 200));
+        log.info('[Executor] stdout chunk:', data.toString().substring(0, 200));
       });
       child.stderr?.on('data', (data) => {
         stderr += data;
-        console.log('[Executor] stderr chunk:', data.toString().substring(0, 200));
+        log.info('[Executor] stderr chunk:', data.toString().substring(0, 200));
       });
 
       // Write message to stdin and close it
@@ -286,9 +289,9 @@ class WindowsExecutor implements IExecutor {
           wasCancelled = true;
         }
 
-        console.log('[Executor] Claude exit code:', code, 'signal:', signal);
-        console.log('[Executor] Claude stdout length:', stdout.length);
-        if (stderr) console.log('[Executor] Claude stderr:', stderr.substring(0, 500));
+        log.info('[Executor] Claude exit code:', code, 'signal:', signal);
+        log.info('[Executor] Claude stdout length:', stdout.length);
+        if (stderr) log.info('[Executor] Claude stderr:', stderr.substring(0, 500));
 
         if (wasCancelled) {
           resolve({
@@ -314,7 +317,7 @@ class WindowsExecutor implements IExecutor {
       child.on('error', (err) => {
         clearTimeout(timer);
         if (executionId) runningProcesses.delete(executionId);
-        console.log('[Executor] Claude spawn error:', err);
+        log.info('[Executor] Claude spawn error:', err);
         resolve({
           success: false,
           error: err.message,
@@ -336,9 +339,9 @@ class WindowsExecutor implements IExecutor {
     return new Promise((resolve) => {
       const validCwd = getValidCwd(cwd);
 
-      console.log('[Executor] Running Claude with JSON streaming in:', validCwd);
-      console.log('[Executor] Idle timeout:', idleTimeout / 1000, 'seconds');
-      if (executionId) console.log('[Executor] Execution ID:', executionId);
+      log.info('[Executor] Running Claude with JSON streaming in:', validCwd);
+      log.info('[Executor] Idle timeout:', idleTimeout / 1000, 'seconds');
+      if (executionId) log.info('[Executor] Execution ID:', executionId);
 
       // Send init event
       safeBroadcast('executor-log', {
@@ -380,7 +383,7 @@ class WindowsExecutor implements IExecutor {
           clearInterval(idleChecker);
           child.kill();
           if (executionId) runningProcesses.delete(executionId);
-          console.log('[Executor] IDLE TIMEOUT');
+          log.info('[Executor] IDLE TIMEOUT');
           resolve({
             success: false,
             error: `Idle timeout - no activity for ${idleTimeout / 1000} seconds`,
@@ -462,7 +465,7 @@ class WindowsExecutor implements IExecutor {
             }
           } catch (e) {
             // Not valid JSON, might be stderr or other output
-            console.log('[Executor] Non-JSON line:', line.substring(0, 100));
+            log.info('[Executor] Non-JSON line:', line.substring(0, 100));
           }
         }
       });
@@ -471,7 +474,7 @@ class WindowsExecutor implements IExecutor {
         stderr += data;
         resetIdleTimer();
         const chunk = data.toString().substring(0, 200);
-        console.log('[Executor] stderr:', chunk);
+        log.info('[Executor] stderr:', chunk);
         safeBroadcast('executor-log', {
           type: 'stderr',
           chunk,
@@ -489,7 +492,7 @@ class WindowsExecutor implements IExecutor {
           wasCancelled = true;
         }
 
-        console.log('[Executor] Exit code:', code, 'signal:', signal, 'duration:', duration);
+        log.info('[Executor] Exit code:', code, 'signal:', signal, 'duration:', duration);
 
         if (wasCancelled) {
           resolve({
@@ -535,12 +538,12 @@ class WindowsExecutor implements IExecutor {
     return new Promise((resolve) => {
       const validCwd = getValidCwd(cwd);
 
-      console.log('[Executor] Running command in:', validCwd);
-      console.log('[Executor] Command:', cmd);
-      console.log('[Executor] Args count:', args.length);
-      console.log('[Executor] First few args:', args.slice(0, 5));
-      console.log('[Executor] Idle timeout:', idleTimeout / 1000, 'seconds');
-      if (executionId) console.log('[Executor] Execution ID:', executionId);
+      log.info('[Executor] Running command in:', validCwd);
+      log.info('[Executor] Command:', cmd);
+      log.info('[Executor] Args count:', args.length);
+      log.info('[Executor] First few args:', args.slice(0, 5));
+      log.info('[Executor] Idle timeout:', idleTimeout / 1000, 'seconds');
+      if (executionId) log.info('[Executor] Execution ID:', executionId);
 
       // Send to renderer for debugging
       safeBroadcast('executor-log', {
@@ -583,7 +586,7 @@ class WindowsExecutor implements IExecutor {
           clearInterval(idleChecker);
           child.kill();
           if (executionId) runningProcesses.delete(executionId);
-          console.log('[Executor] IDLE TIMEOUT - no activity for', idleTimeout / 1000, 'seconds');
+          log.info('[Executor] IDLE TIMEOUT - no activity for', idleTimeout / 1000, 'seconds');
           safeBroadcast('executor-log', {
             type: 'idle-timeout',
             idleTime,
@@ -603,7 +606,7 @@ class WindowsExecutor implements IExecutor {
         stdout += data;
         resetIdleTimer();
         const chunk = data.toString().substring(0, 200);
-        console.log('[Executor] stdout chunk:', chunk);
+        log.info('[Executor] stdout chunk:', chunk);
         safeBroadcast('executor-log', {
           type: 'stdout',
           chunk,
@@ -616,7 +619,7 @@ class WindowsExecutor implements IExecutor {
         stderr += data;
         resetIdleTimer();
         const chunk = data.toString().substring(0, 200);
-        console.log('[Executor] stderr chunk:', chunk);
+        log.info('[Executor] stderr chunk:', chunk);
         safeBroadcast('executor-log', {
           type: 'stderr',
           chunk,
@@ -636,9 +639,9 @@ class WindowsExecutor implements IExecutor {
           wasCancelled = true;
         }
 
-        console.log('[Executor] Exit code:', code, 'signal:', signal, 'duration:', duration);
-        console.log('[Executor] stdout length:', stdout.length);
-        if (stderr) console.log('[Executor] stderr:', stderr.substring(0, 500));
+        log.info('[Executor] Exit code:', code, 'signal:', signal, 'duration:', duration);
+        log.info('[Executor] stdout length:', stdout.length);
+        if (stderr) log.info('[Executor] stderr:', stderr.substring(0, 500));
 
         // Send result to renderer
         safeBroadcast('executor-log', {
@@ -676,7 +679,7 @@ class WindowsExecutor implements IExecutor {
       child.on('error', (err) => {
         clearInterval(idleChecker);
         if (executionId) runningProcesses.delete(executionId);
-        console.log('[Executor] Spawn error:', err);
+        log.info('[Executor] Spawn error:', err);
         resolve({
           success: false,
           error: err.message,
@@ -904,8 +907,8 @@ class WslExecutor implements IExecutor {
         ? ['-d', this.distro, 'bash', '-c', fullCmd]
         : ['bash', '-c', fullCmd];
 
-      console.log('[Executor] WSL running Claude with JSON streaming');
-      if (executionId) console.log('[Executor] Execution ID:', executionId);
+      log.info('[Executor] WSL running Claude with JSON streaming');
+      if (executionId) log.info('[Executor] Execution ID:', executionId);
 
       safeBroadcast('executor-log', {
         type: 'wsl-spawn',
@@ -1031,10 +1034,10 @@ class WslExecutor implements IExecutor {
         ? ['-d', this.distro, 'bash', '-c', fullCmd]
         : ['bash', '-c', fullCmd];
 
-      console.log('[Executor] WSL running command');
-      console.log('[Executor] Args count:', args.length);
-      console.log('[Executor] Idle timeout:', idleTimeout / 1000, 'seconds');
-      if (executionId) console.log('[Executor] Execution ID:', executionId);
+      log.info('[Executor] WSL running command');
+      log.info('[Executor] Args count:', args.length);
+      log.info('[Executor] Idle timeout:', idleTimeout / 1000, 'seconds');
+      if (executionId) log.info('[Executor] Execution ID:', executionId);
 
       // Send to renderer for debugging
       safeBroadcast('executor-log', {
@@ -1078,7 +1081,7 @@ class WslExecutor implements IExecutor {
           clearInterval(idleChecker);
           child.kill();
           if (executionId) runningProcesses.delete(executionId);
-          console.log('[Executor] WSL IDLE TIMEOUT - no activity for', idleTimeout / 1000, 'seconds');
+          log.info('[Executor] WSL IDLE TIMEOUT - no activity for', idleTimeout / 1000, 'seconds');
           safeBroadcast('executor-log', {
             type: 'wsl-idle-timeout',
             idleTime,
@@ -1098,7 +1101,7 @@ class WslExecutor implements IExecutor {
         stdout += data;
         resetIdleTimer();
         const chunk = data.toString().substring(0, 200);
-        console.log('[Executor] WSL stdout chunk:', chunk);
+        log.info('[Executor] WSL stdout chunk:', chunk);
         safeBroadcast('executor-log', {
           type: 'wsl-stdout',
           chunk,
@@ -1111,7 +1114,7 @@ class WslExecutor implements IExecutor {
         stderr += data;
         resetIdleTimer();
         const chunk = data.toString().substring(0, 200);
-        console.log('[Executor] WSL stderr chunk:', chunk);
+        log.info('[Executor] WSL stderr chunk:', chunk);
         safeBroadcast('executor-log', {
           type: 'wsl-stderr',
           chunk,
@@ -1131,9 +1134,9 @@ class WslExecutor implements IExecutor {
           wasCancelled = true;
         }
 
-        console.log('[Executor] WSL exit code:', code, 'signal:', signal, 'duration:', duration);
-        console.log('[Executor] WSL stdout length:', stdout.length);
-        if (stderr) console.log('[Executor] WSL stderr:', stderr.substring(0, 500));
+        log.info('[Executor] WSL exit code:', code, 'signal:', signal, 'duration:', duration);
+        log.info('[Executor] WSL stdout length:', stdout.length);
+        if (stderr) log.info('[Executor] WSL stderr:', stderr.substring(0, 500));
 
         // Send result to renderer
         safeBroadcast('executor-log', {
@@ -1273,7 +1276,7 @@ export async function getExecutor(): Promise<IExecutor> {
 export async function switchExecutor(mode: 'windows' | 'wsl'): Promise<void> {
   // Cancel any running processes before switching modes
   if (runningProcesses.size > 0) {
-    console.log(`[Executor] Cancelling ${runningProcesses.size} running processes before mode switch`);
+    log.info(`[Executor] Cancelling ${runningProcesses.size} running processes before mode switch`);
     cancelAllExecutions();
   }
 

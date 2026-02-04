@@ -162,6 +162,12 @@ import {
   getGreeting,
   ClawdbotPersonality,
 } from '../services/clawdbot';
+import {
+  getTokenHistory,
+  getTotalUsageForPeriod,
+  getAverageDailyUsage,
+  clearTokenHistory,
+} from '../stores/token-history';
 
 // System prompt for Claude Code (ClawdBot)
 function getSystemPrompt(): string {
@@ -836,7 +842,12 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
       throw new Error(`MCP server not connected: ${serverName}`);
     }
     // Access the underlying client to call tools
-    return (server as unknown as { client: { callTool: (name: string, args: Record<string, unknown>) => Promise<unknown> } }).client.callTool(toolName, args);
+    interface MCPServerWithClient {
+      client: {
+        callTool: (name: string, args: Record<string, unknown>) => Promise<unknown>;
+      };
+    }
+    return (server as unknown as MCPServerWithClient).client.callTool(toolName, args);
   });
 
   // Auto-connect enabled MCP servers on startup
@@ -972,5 +983,25 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
     } catch (error) {
       return { success: false, error: (error as Error).message };
     }
+  });
+
+  // ============================================
+  // Token History handlers
+  // ============================================
+  ipcMain.handle('tokenHistory:get', (_, days?: number) => {
+    return getTokenHistory(days || 7);
+  });
+
+  ipcMain.handle('tokenHistory:getTotal', (_, days?: number) => {
+    return getTotalUsageForPeriod(days || 7);
+  });
+
+  ipcMain.handle('tokenHistory:getAverage', (_, days?: number) => {
+    return getAverageDailyUsage(days || 7);
+  });
+
+  ipcMain.handle('tokenHistory:clear', () => {
+    clearTokenHistory();
+    return { success: true };
   });
 }

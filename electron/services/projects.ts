@@ -4,7 +4,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
 import { settings } from './settings';
+import { createLogger } from '../utils/logger';
 
+const log = createLogger('Projects');
 const execAsync = promisify(exec);
 const fsPromises = fs.promises;
 
@@ -122,7 +124,7 @@ export async function scanProject(projectPath: string): Promise<Project> {
       // Ignore
     }
   } catch (err) {
-    console.error(`Error scanning project ${projectPath}:`, err);
+    log.error(`Error scanning project ${projectPath}:`, err);
   }
 
   return project;
@@ -244,7 +246,7 @@ async function discoverWslGitRepos(): Promise<Project[]> {
       }
     }
   } catch (err) {
-    console.error('WSL git repo discovery failed:', err);
+    log.error('WSL git repo discovery failed:', err);
   }
 
   return discovered;
@@ -312,7 +314,7 @@ export async function discoverGitRepos(): Promise<Project[]> {
       const wslRepos = await discoverWslGitRepos();
       discovered.push(...wslRepos);
     } catch (err) {
-      console.error('WSL discovery failed:', err);
+      log.error('WSL discovery failed:', err);
     }
   }
 
@@ -445,7 +447,7 @@ async function getSessionsFromHistory(activeThresholdMs: number = 2 * 60 * 1000)
       }
     }
   } catch (err) {
-    console.error('Error reading session history:', err);
+    log.error('Error reading session history:', err);
   }
 
   // Sort by modification time, newest first
@@ -538,11 +540,11 @@ export async function detectClaudeSessions(): Promise<ClaudeSession[]> {
               });
             }
           } catch (parseErr) {
-            console.error('Error parsing PowerShell output:', parseErr);
+            log.error('Error parsing PowerShell output:', parseErr);
           }
         }
       } catch (psErr) {
-        console.error('PowerShell process detection failed:', psErr);
+        log.error('PowerShell process detection failed:', psErr);
       }
 
       // WSL: Can get working directory from /proc/{pid}/cwd
@@ -733,7 +735,7 @@ export async function detectClaudeSessions(): Promise<ClaudeSession[]> {
       }
     }
   } catch (err) {
-    console.error('Error detecting Claude sessions:', err);
+    log.error('Error detecting Claude sessions:', err);
   }
 
   // Sort: running first, then by modification time

@@ -696,9 +696,25 @@ export default function Controller() {
                       {/* Streaming events display */}
                       {streamingEvents.length > 0 ? (
                         <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-cyan-400 mb-2">
-                            <Terminal className="w-4 h-4" />
-                            <span className="text-sm font-medium">Claude is working...</span>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2 text-cyan-400">
+                              <Terminal className="w-4 h-4" />
+                              <span className="text-sm font-medium">Claude is working...</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                // Cancel the current execution
+                                window.electronAPI?.cancelDeepDiveTask?.('general', 'current');
+                                setLoading(false);
+                                setStreamingEvents([]);
+                                setCurrentExecutionId(null);
+                              }}
+                              className="flex items-center gap-1 px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                              title="Cancel execution"
+                            >
+                              <Square className="w-3 h-3" />
+                              Cancel
+                            </button>
                           </div>
                           <div className="max-h-48 overflow-y-auto space-y-1.5 scrollbar-thin">
                             {streamingEvents.slice(-10).map((event) => (

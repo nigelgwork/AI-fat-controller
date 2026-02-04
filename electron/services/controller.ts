@@ -1,8 +1,13 @@
 import Store from 'electron-store';
+import { Notification, app } from 'electron';
 import { getExecutor } from './executor';
 import { listTasks, updateTask, getTaskById } from './tasks';
 import type { Task } from './tasks';
 import { safeBroadcast } from '../utils/safe-ipc';
+import { recordHourlyUsage } from '../stores/token-history';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('Controller');
 
 // Generate a simple unique ID
 function generateId(): string {
@@ -178,6 +183,32 @@ function notifyStateChanged(): void {
 
 function notifyApprovalRequired(request: ApprovalRequest): void {
   safeBroadcast('controller:approvalRequired', request);
+
+  // Send system notification for approvals
+  if (Notification.isSupported()) {
+    const notification = new Notification({
+      title: 'Approval Required',
+      body: `${request.actionType.replace('_', ' ')}: ${request.taskTitle}`,
+      icon: app.isPackaged
+        ? undefined // Use default app icon in production
+        : undefined,
+      urgency: 'critical',
+    });
+
+    notification.on('click', () => {
+      // Focus the main window when notification is clicked
+      const { BrowserWindow } = require('electron');
+      const windows = BrowserWindow.getAllWindows();
+      if (windows.length > 0) {
+        const mainWindow = windows[0];
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    });
+
+    notification.show();
+  }
 }
 
 function notifyActionCompleted(log: ActionLog): void {
@@ -248,7 +279,7 @@ export function updateTokenUsage(input: number, output: number, contextWindow?: 
       maxTokensPerHour: contextWindow,
       maxTokensPerDay: contextWindow * 5,
     };
-    console.log(`[Controller] Updated token limits from Claude API: ${contextWindow} per hour, ${contextWindow * 5} per day`);
+    log.info(`[Controller] Updated token limits from Claude API: ${contextWindow} per hour, ${contextWindow * 5} per day`);
   }
 
   // Handle hourly reset
@@ -262,6 +293,8 @@ export function updateTokenUsage(input: number, output: number, contextWindow?: 
   let shouldResetHourly = false;
   if (new Date() > new Date(newUsage.resetAt)) {
     shouldResetHourly = true;
+    // Record historical data before reset
+    recordHourlyUsage(current.tokenUsage.inputTokens, current.tokenUsage.outputTokens);
     newUsage = {
       inputTokens: input,
       outputTokens: output,
@@ -308,14 +341,14 @@ export function updateTokenUsage(input: number, output: number, contextWindow?: 
     // Hourly limit has reset - resume normal operation
     newControllerStatus = 'running';
     pausedDueToLimit = false;
-    console.log('[Controller] Token limit reset - resuming normal operation');
+    log.info('[Controller] Token limit reset - resuming normal operation');
   } else if ((newStatus === 'approaching_limit' || newStatus === 'at_limit') && current.status === 'running') {
     // Approaching or at limit - wind down gracefully
     newControllerStatus = 'winding_down';
     pausedDueToLimit = true;
     const resetTime = new Date(newUsage.resetAt);
     const minsUntilReset = Math.ceil((resetTime.getTime() - Date.now()) / 60000);
-    console.log(`[Controller] Approaching token limit - winding down. Will resume in ~${minsUntilReset} minutes`);
+    log.info(`[Controller] Approaching token limit - winding down. Will resume in ~${minsUntilReset} minutes`);
   }
 
   const stateUpdate: Partial<ControllerState> = {

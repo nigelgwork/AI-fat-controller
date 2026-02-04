@@ -2,6 +2,9 @@ import { app, desktopCapturer, screen, BrowserWindow } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import { getExecutor } from './executor';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('Screenshot');
 
 export interface CaptureOptions {
   display?: number;
@@ -104,7 +107,7 @@ export async function captureScreen(options?: CaptureOptions): Promise<Screensho
       height: finalImage.getSize().height,
     };
   } catch (error) {
-    console.error('Screenshot capture failed:', error);
+    log.error('Screenshot capture failed:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -130,7 +133,7 @@ export async function captureActiveWindow(): Promise<ScreenshotResult> {
       region: bounds,
     });
   } catch (error) {
-    console.error('Active window capture failed:', error);
+    log.error('Active window capture failed:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -178,7 +181,7 @@ Provide a detailed analysis based on what you can see in the image.`;
       analysis: result.response,
     };
   } catch (error) {
-    console.error('Screenshot analysis failed:', error);
+    log.error('Screenshot analysis failed:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -250,7 +253,7 @@ DETAILS: [your observations]`;
       details: detailsMatch?.[1]?.trim() || response,
     };
   } catch (error) {
-    console.error('UI verification failed:', error);
+    log.error('UI verification failed:', error);
     return {
       found: false,
       confidence: 'none',

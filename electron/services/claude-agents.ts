@@ -3,6 +3,9 @@ import * as path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { app } from 'electron';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('ClaudeAgents');
 
 const fsPromises = fs.promises;
 const execAsync = promisify(exec);
@@ -107,7 +110,7 @@ async function parseAgentFile(filePath: string, pluginName: string, isCustom: bo
       isCustom,
     };
   } catch (err) {
-    console.error(`Error parsing agent file ${filePath}:`, err);
+    log.error(`Error parsing agent file ${filePath}:`, err);
     return null;
   }
 }

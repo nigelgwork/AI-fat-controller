@@ -4,6 +4,9 @@ import { execSync } from 'child_process';
 import Store from 'electron-store';
 import { getExecutor } from './executor';
 import { createTask, type TaskPriority } from './tasks';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('ProjectBriefs');
 
 // Types
 export interface ProjectBrief {
@@ -99,7 +102,7 @@ function safeReadFile(filePath: string): string | null {
       return fs.readFileSync(filePath, 'utf-8');
     }
   } catch (error) {
-    console.error(`Error reading ${filePath}:`, error);
+    log.error(`Error reading ${filePath}:`, error);
   }
   return null;
 }
@@ -363,7 +366,7 @@ Return ONLY valid JSON, no markdown or explanation.`;
       }
     }
   } catch (error) {
-    console.error('Error generating brief with Claude:', error);
+    log.error('Error generating brief with Claude:', error);
     summary = `${projectName} - ${techStack.join(', ')} project`;
   }
 
@@ -508,11 +511,11 @@ Create 3-5 phases with 2-4 tasks each. Return ONLY valid JSON.`;
           })),
         }));
       } catch (e) {
-        console.error('Error parsing deep dive plan:', e);
+        log.error('Error parsing deep dive plan:', e);
       }
     }
   } catch (error) {
-    console.error('Error generating deep dive plan:', error);
+    log.error('Error generating deep dive plan:', error);
   }
 
   // Fallback phases
@@ -865,7 +868,7 @@ Return ONLY valid JSON.`;
         files: parsed.files || {},
       };
     } catch (e) {
-      console.error('Error parsing project structure:', e);
+      log.error('Error parsing project structure:', e);
     }
   }
 

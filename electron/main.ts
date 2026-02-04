@@ -7,6 +7,7 @@ import { initAutoUpdater, checkForUpdates, stopAutoUpdater } from './services/au
 import { initControllerStore, getControllerState, pauseController, resumeController } from './services/controller';
 import { initNtfyStore, startPolling as startNtfyPolling, stopPolling as stopNtfyPolling, getNtfyConfig } from './services/ntfy';
 import { initBriefsStore } from './services/project-briefs';
+import { initTokenHistoryStore } from './stores/token-history';
 import { createLogger, configureLogger } from './utils/logger';
 
 const log = createLogger('Main');
@@ -208,6 +209,9 @@ if (!gotTheLock) {
 
     // Initialize project briefs store
     initBriefsStore();
+
+    // Initialize token history store
+    initTokenHistoryStore();
 
     // Start ntfy polling if enabled
     const ntfyConfig = getNtfyConfig();

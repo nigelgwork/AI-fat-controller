@@ -5,6 +5,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
 import { safeBroadcast } from '../utils/safe-ipc';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('GUITest');
 
 // Execution mode for tests
 export type TestExecutionMode = 'mcp-direct' | 'claude-assisted' | 'hybrid';
@@ -480,10 +483,10 @@ export async function runTestScenario(
     try {
       if (!mcpManager.getServer(serverName)?.isConnected()) {
         await mcpManager.connect(serverName);
-        console.log(`[GUI Test] Connected to MCP server: ${serverName}`);
+        log.info(`[GUI Test] Connected to MCP server: ${serverName}`);
       }
     } catch (error) {
-      console.warn(`[GUI Test] Failed to connect to MCP server, falling back to Claude-assisted:`, error);
+      log.warn(`[GUI Test] Failed to connect to MCP server, falling back to Claude-assisted:`, error);
       if (execConfig.mode === 'mcp-direct') {
         result.status = 'error';
         result.completedAt = new Date().toISOString();
