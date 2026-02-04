@@ -8,6 +8,14 @@ import { safeBroadcast } from '../utils/safe-ipc';
 import { recordHourlyUsage } from '../stores/token-history';
 import { createLogger } from '../utils/logger';
 import { getEncryptionKey } from '../utils/encryption-key';
+import {
+  createSession,
+  updateSessionStatus,
+  addSessionLog,
+  updateSessionTokens,
+  getActiveSessions,
+  cancelSession,
+} from './session-manager';
 
 const log = createLogger('Controller');
 
@@ -623,32 +631,66 @@ function classifyAction(claudeResponse: string, task: Task): ActionClassificatio
 // Process a single task
 async function processTask(task: Task): Promise<void> {
   const startTime = Date.now();
+  const sessionId = `session-${task.id}-${Date.now()}`;
+
+  // Create a visible session for this execution
+  const session = createSession(sessionId, task.id, task.title);
+  addSessionLog(sessionId, 'info', `Starting task: ${task.title}`);
 
   updateState({
     currentTaskId: task.id,
     currentAction: `Processing: ${task.title}`,
+    conversationSessionId: sessionId,
   });
 
   setProgress('executing', 1, 3, 'Analyzing task...');
 
   // Update task to in_progress
   updateTask(task.id, { status: 'in_progress' });
+  updateSessionStatus(sessionId, 'running');
 
   try {
     const executor = await getExecutor();
 
-    // Build the prompt
-    let prompt = `Task: ${task.title}`;
+    // Build a more actionable prompt
+    let prompt = `## Task: ${task.title}`;
     if (task.description) {
-      prompt += `\n\nDescription: ${task.description}`;
+      prompt += `\n\n## Description:\n${task.description}`;
     }
-    prompt += '\n\nPlease analyze this task and either provide a plan for implementation or execute any straightforward actions.';
+    prompt += `\n\n## Instructions:\nPlease complete this task. You have full permissions to:
+- Read and write files
+- Run commands
+- Make git commits (but ask before pushing)
 
-    const systemPrompt = `You are the Phat Controller, an autonomous AI project manager. You process tasks and execute actions when appropriate. For simple tasks (running tests, formatting, small edits), execute them directly. For complex tasks requiring planning or architecture decisions, provide a detailed plan first.`;
+If this is a coding task, actually implement the changes. If you need more information, explain what you need.
+When you're done, summarize what you accomplished.`;
+
+    const systemPrompt = `You are the Phat Controller, an autonomous AI agent that completes software engineering tasks.
+
+IMPORTANT: You should ACTUALLY DO THE WORK, not just describe what needs to be done.
+
+For coding tasks:
+- Read the relevant files first
+- Make the necessary code changes
+- Run tests if available
+- Create git commits for your changes
+
+For research tasks:
+- Search and read the codebase
+- Provide clear findings
+
+For complex tasks:
+- Break them down into steps
+- Execute each step
+- Report progress
+
+Always be thorough and actually complete the task.`;
 
     setProgress('executing', 2, 3, 'Executing with Claude...');
+    addSessionLog(sessionId, 'info', 'Sending task to Claude Code...');
 
-    const result = await executor.runClaude(prompt, systemPrompt);
+    // Pass session ID so executor events can be tracked
+    const result = await executor.runClaude(prompt, systemPrompt, undefined, undefined, sessionId);
 
     const duration = Date.now() - startTime;
 
@@ -669,6 +711,10 @@ async function processTask(task: Task): Promise<void> {
       // Task failed - schedule retry or mark as failed
       const errorMsg = result.error || 'Unknown error';
       const updatedTask = scheduleRetry(task.id, errorMsg);
+
+      // Update session status
+      addSessionLog(sessionId, 'error', `Task failed: ${errorMsg}`);
+      updateSessionStatus(sessionId, 'failed', { error: errorMsg });
 
       addActionLog({
         id: generateId(),
@@ -703,6 +749,16 @@ async function processTask(task: Task): Promise<void> {
 
       clearProgress();
       return;
+    }
+
+    // Update session with token usage
+    if (result.tokenUsage) {
+      updateSessionTokens(
+        sessionId,
+        result.tokenUsage.inputTokens,
+        result.tokenUsage.outputTokens,
+        result.costUsd
+      );
     }
 
     setProgress('reviewing', 3, 3, 'Reviewing results...');
@@ -767,6 +823,10 @@ async function processTask(task: Task): Promise<void> {
         );
       }
 
+      // Update session for approval waiting
+      addSessionLog(sessionId, 'info', `Waiting for approval: ${classification.description}`);
+      updateSessionStatus(sessionId, 'waiting_input');
+
       updateState({
         status: 'waiting_approval',
         currentAction: `Waiting approval: ${classification.description}`,
@@ -778,7 +838,11 @@ async function processTask(task: Task): Promise<void> {
       return;
     }
 
-    // Auto-approved action
+    // Auto-approved action - task completed successfully
+    addSessionLog(sessionId, 'complete', `Task completed: ${classification.description}`);
+    addSessionLog(sessionId, 'info', `Result: ${response.substring(0, 200)}${response.length > 200 ? '...' : ''}`);
+    updateSessionStatus(sessionId, 'completed', { result: response.substring(0, 500) });
+
     addActionLog({
       id: generateId(),
       taskId: task.id,
@@ -805,6 +869,10 @@ async function processTask(task: Task): Promise<void> {
   } catch (error) {
     const duration = Date.now() - startTime;
     const errorMsg = error instanceof Error ? error.message : String(error);
+
+    // Update session with error
+    addSessionLog(sessionId, 'error', `Task error: ${errorMsg}`);
+    updateSessionStatus(sessionId, 'failed', { error: errorMsg });
 
     // Schedule retry or mark as failed
     const updatedTask = scheduleRetry(task.id, errorMsg);

@@ -1,4 +1,4 @@
-import type { Bead, AppSettings, ExecutionMode, Task, CreateTaskInput, UpdateTaskInput, TasksStats, ControllerState, ControllerPhase, ProgressState, TokenUsage, UsageLimitConfig, UsageLimitStatus, ApprovalRequest, ActionLog, ConversationEntry, ConversationSession, NtfyConfig, PendingQuestion, ProjectBrief, DeepDivePlan, NewProjectSpec, CaptureOptions, ScreenshotResult, ScreenAnalysis, UIVerificationResult, TestScenario, TestStep, TestResult, MCPServerConfig, MCPTool, TestExecutionConfig } from './gastown';
+import type { Bead, AppSettings, ExecutionMode, Task, CreateTaskInput, UpdateTaskInput, TasksStats, ControllerState, ControllerPhase, ProgressState, TokenUsage, UsageLimitConfig, UsageLimitStatus, ApprovalRequest, ActionLog, ConversationEntry, ConversationSession, NtfyConfig, PendingQuestion, ProjectBrief, DeepDivePlan, NewProjectSpec, CaptureOptions, ScreenshotResult, ScreenAnalysis, UIVerificationResult, TestScenario, TestStep, TestResult, MCPServerConfig, MCPTool, TestExecutionConfig, ExecutionSession, SessionLogEntry, ExecutionSessionSummary } from './gastown';
 
 export interface ModeStatusResult {
   current: ExecutionMode;
@@ -349,6 +349,22 @@ interface ElectronAPI {
   dispatchAction?: (intent: Intent) => Promise<ActionResult>;
   executeConfirmedAction?: (confirmationMessage: string) => Promise<ActionResult>;
   getAvailableCommands?: () => Promise<Array<{ category: string; examples: string[] }>>;
+
+  // Clawdbot Conversation Persistence
+  getClawdbotMessages?: () => Promise<ClawdbotMessage[]>;
+  addClawdbotMessage?: (message: { role: 'user' | 'assistant'; content: string; intent?: { type: string; action: string; confidence: number }; usedClaudeCode?: boolean }) => Promise<ClawdbotMessage>;
+  clearClawdbotMessages?: () => Promise<{ success: boolean }>;
+
+  // Execution Sessions (Claude Code session tracking)
+  getActiveSessions?: () => Promise<ExecutionSessionSummary[]>;
+  getSessionHistory?: (limit?: number) => Promise<ExecutionSessionSummary[]>;
+  getSession?: (id: string) => Promise<ExecutionSession | undefined>;
+  getSessionLogs?: (id: string, limit?: number) => Promise<SessionLogEntry[]>;
+  cancelSession?: (id: string) => Promise<{ success: boolean }>;
+
+  // Execution session event listeners
+  onSessionUpdate?: (callback: (data: { session: ExecutionSessionSummary }) => void) => () => void;
+  onSessionLog?: (callback: (data: { sessionId: string; entry: SessionLogEntry }) => void) => () => void;
 }
 
 declare global {
@@ -449,6 +465,20 @@ export interface ActionResult {
   navigate?: string;
   requiresConfirmation?: boolean;
   confirmationMessage?: string;
+}
+
+// Clawdbot conversation message
+export interface ClawdbotMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  intent?: {
+    type: string;
+    action: string;
+    confidence: number;
+  };
+  usedClaudeCode?: boolean;
 }
 
 // Clawdbot personality types

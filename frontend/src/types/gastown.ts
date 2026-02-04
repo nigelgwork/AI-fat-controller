@@ -367,6 +367,47 @@ export interface ActionLog {
   timestamp: string;
 }
 
+// Execution Session Types (for tracking Claude Code sessions)
+export interface SessionLogEntry {
+  timestamp: string;
+  type: 'text' | 'tool-call' | 'tool-result' | 'error' | 'info' | 'complete';
+  content: string;
+  details?: Record<string, unknown>;
+}
+
+export interface ExecutionSession {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  status: 'starting' | 'running' | 'waiting_input' | 'completed' | 'failed' | 'cancelled';
+  startedAt: string;
+  endedAt?: string;
+  logs: SessionLogEntry[];
+  lastActivity: string;
+  toolCalls: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd?: number;
+  error?: string;
+  result?: string;
+}
+
+export interface ExecutionSessionSummary {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  status: ExecutionSession['status'];
+  startedAt: string;
+  endedAt?: string;
+  lastActivity: string;
+  toolCalls: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd?: number;
+  error?: string;
+  logCount: number;
+}
+
 // Conversation Types
 export interface ConversationEntry {
   id: string;

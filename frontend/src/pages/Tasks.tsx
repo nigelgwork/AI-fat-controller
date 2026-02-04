@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { Task, TaskStatus, TaskPriority, CreateTaskInput, UpdateTaskInput } from '../types/gastown';
 import type { Project } from '../types/electron.d';
+import ActiveSessions from '../components/ActiveSessions';
 
 export default function Tasks() {
   const queryClient = useQueryClient();
@@ -191,6 +192,9 @@ export default function Tasks() {
           </button>
         </div>
       )}
+
+      {/* Active Claude Code Sessions */}
+      <ActiveSessions showHistory={true} maxHistoryItems={3} />
 
       {isLoading ? (
         <div className="text-slate-400">Loading tasks...</div>

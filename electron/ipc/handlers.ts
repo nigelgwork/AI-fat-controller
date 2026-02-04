@@ -1166,4 +1166,52 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
   ipcMain.handle('clawdbot:getAvailableCommands', () => {
     return getAvailableCommands();
   });
+
+  // Clawdbot Conversation handlers
+  ipcMain.handle('clawdbot:getMessages', () => {
+    const { getMessages } = require('../stores/clawdbot-conversation');
+    return getMessages();
+  });
+
+  ipcMain.handle('clawdbot:addMessage', (_, message: { role: 'user' | 'assistant'; content: string; intent?: { type: string; action: string; confidence: number }; usedClaudeCode?: boolean }) => {
+    const { addMessage } = require('../stores/clawdbot-conversation');
+    return addMessage(message);
+  });
+
+  ipcMain.handle('clawdbot:clearMessages', () => {
+    const { clearMessages } = require('../stores/clawdbot-conversation');
+    clearMessages();
+    return { success: true };
+  });
+
+  // ============================================
+  // Session Manager handlers
+  // ============================================
+  ipcMain.handle('sessions:getActive', () => {
+    const { getActiveSessions } = require('../services/session-manager');
+    return getActiveSessions();
+  });
+
+  ipcMain.handle('sessions:getHistory', (_, limit?: number) => {
+    const { getSessionHistory } = require('../services/session-manager');
+    return getSessionHistory(limit);
+  });
+
+  ipcMain.handle('sessions:get', (_, id: string) => {
+    const { getSession } = require('../services/session-manager');
+    return getSession(id);
+  });
+
+  ipcMain.handle('sessions:getLogs', (_, id: string, limit?: number) => {
+    const { getSessionLogs } = require('../services/session-manager');
+    return getSessionLogs(id, limit);
+  });
+
+  ipcMain.handle('sessions:cancel', (_, id: string) => {
+    const { cancelSession } = require('../services/session-manager');
+    const { cancelExecution } = require('../services/executor');
+    // Cancel both the session and the execution
+    cancelExecution(id);
+    return cancelSession(id);
+  });
 }

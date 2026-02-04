@@ -270,6 +270,62 @@ export interface ConversationSession {
   summary?: string;
 }
 
+// Clawdbot conversation message
+export interface ClawdbotMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  intent?: {
+    type: string;
+    action: string;
+    confidence: number;
+  };
+  usedClaudeCode?: boolean;
+}
+
+// Execution session types
+export interface ExecutionSession {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  status: 'starting' | 'running' | 'waiting_input' | 'completed' | 'failed' | 'cancelled';
+  startedAt: string;
+  endedAt?: string;
+  logs: SessionLogEntry[];
+  lastActivity: string;
+  toolCalls: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd?: number;
+  error?: string;
+  result?: string;
+}
+
+export interface SessionLogEntry {
+  timestamp: string;
+  type: 'text' | 'tool-call' | 'tool-result' | 'error' | 'info' | 'complete';
+  content: string;
+  details?: Record<string, unknown>;
+}
+
+// Summary version for IPC (without full logs)
+export interface ExecutionSessionSummary {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  status: ExecutionSession['status'];
+  startedAt: string;
+  endedAt?: string;
+  lastActivity: string;
+  toolCalls: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd?: number;
+  error?: string;
+  logCount: number;
+}
+
 // Backwards compatibility
 export type MayorStatus = ControllerStatus;
 export type MayorState = ControllerState;
@@ -820,6 +876,38 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('clawdbot:executeConfirmedAction', confirmationMessage),
   getAvailableCommands: (): Promise<Array<{ category: string; examples: string[] }>> =>
     ipcRenderer.invoke('clawdbot:getAvailableCommands'),
+
+  // Clawdbot Conversation Persistence
+  getClawdbotMessages: (): Promise<ClawdbotMessage[]> =>
+    ipcRenderer.invoke('clawdbot:getMessages'),
+  addClawdbotMessage: (message: { role: 'user' | 'assistant'; content: string; intent?: { type: string; action: string; confidence: number }; usedClaudeCode?: boolean }): Promise<ClawdbotMessage> =>
+    ipcRenderer.invoke('clawdbot:addMessage', message),
+  clearClawdbotMessages: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('clawdbot:clearMessages'),
+
+  // Session Manager
+  getActiveSessions: (): Promise<ExecutionSession[]> =>
+    ipcRenderer.invoke('sessions:getActive'),
+  getSessionHistory: (limit?: number): Promise<ExecutionSession[]> =>
+    ipcRenderer.invoke('sessions:getHistory', limit),
+  getSession: (id: string): Promise<ExecutionSession | undefined> =>
+    ipcRenderer.invoke('sessions:get', id),
+  getSessionLogs: (id: string, limit?: number): Promise<SessionLogEntry[]> =>
+    ipcRenderer.invoke('sessions:getLogs', id, limit),
+  cancelSession: (id: string): Promise<boolean> =>
+    ipcRenderer.invoke('sessions:cancel', id),
+
+  // Session event listeners
+  onSessionUpdate: (callback: (data: { session: ExecutionSessionSummary }) => void) => {
+    const handler = (_: unknown, data: { session: ExecutionSessionSummary }) => callback(data);
+    ipcRenderer.on('session:updated', handler);
+    return () => ipcRenderer.removeListener('session:updated', handler);
+  },
+  onSessionLog: (callback: (data: { sessionId: string; entry: SessionLogEntry }) => void) => {
+    const handler = (_: unknown, data: { sessionId: string; entry: SessionLogEntry }) => callback(data);
+    ipcRenderer.on('session:log', handler);
+    return () => ipcRenderer.removeListener('session:log', handler);
+  },
 
   // Event listeners
   onUpdateChecking: (callback: () => void) => {

@@ -9,6 +9,11 @@ import { listTasks, createTask, updateTask, deleteTask, getTasksStats } from './
 import { getProjects } from './projects';
 import { getActivitySummary } from '../stores/activity-log';
 import { formatCost, formatTokens } from './cost-calculator';
+import { getExecutor } from './executor';
+import { getRecentMessages, ClawdbotMessage } from '../stores/clawdbot-conversation';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('ActionDispatcher');
 
 export interface ActionResult {
   success: boolean;
@@ -37,11 +42,103 @@ export async function dispatchAction(intent: Intent): Promise<ActionResult> {
       return handleSettings(intent);
     case 'unknown':
     default:
+      // Try to handle with Claude Code
+      return handleUnknownWithClaude(intent);
+  }
+}
+
+/**
+ * Handle unknown intents by calling Claude Code
+ */
+async function handleUnknownWithClaude(intent: Intent): Promise<ActionResult> {
+  const userMessage = intent.originalText;
+
+  log.info('[Clawdbot] Routing unknown intent to Claude Code:', userMessage.substring(0, 50));
+
+  try {
+    const executor = await getExecutor();
+
+    // Build context from recent conversation
+    const recentMessages = getRecentMessages(6);
+    let conversationContext = '';
+    if (recentMessages.length > 0) {
+      conversationContext = recentMessages
+        .map((m: ClawdbotMessage) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+        .join('\n');
+      conversationContext = `\n\nRecent conversation:\n${conversationContext}\n\n`;
+    }
+
+    // Get current state for context
+    const state = getControllerState();
+    const stats = await getTasksStats();
+    const projects = await getProjects();
+
+    const systemPrompt = `You are Clawdbot, a helpful AI assistant integrated into the AI Controller app.
+You help users manage tasks, navigate the app, understand the codebase, and answer questions.
+
+Current app state:
+- Controller status: ${state.status}
+- Tasks: ${stats.todo} todo, ${stats.inProgress} in progress, ${stats.done} done
+- Projects: ${projects.length} registered
+
+Available navigation: dashboard, tasks, projects, settings, controller, agents, sessions, activity, clawdbot, tmux
+
+You can help with:
+- Creating and managing tasks
+- Navigating the app
+- Answering questions about the codebase
+- Explaining features
+- General conversation
+
+Keep responses concise but helpful. If you need to suggest an action, clearly state what you're recommending.`;
+
+    const prompt = conversationContext + `User: ${userMessage}`;
+
+    const result = await executor.runClaude(prompt, systemPrompt, undefined, undefined, `clawdbot-${Date.now()}`);
+
+    if (result.success && result.response) {
+      // Parse out the final result from potential JSON stream output
+      let response = result.response;
+
+      // If it looks like JSON stream output, try to extract the text
+      if (response.includes('"type":"result"')) {
+        try {
+          const lines = response.split('\n');
+          for (const line of lines) {
+            if (line.includes('"type":"result"')) {
+              const json = JSON.parse(line);
+              if (json.result) {
+                response = json.result;
+                break;
+              }
+            }
+          }
+        } catch {
+          // Keep original response if parsing fails
+        }
+      }
+
+      return {
+        success: true,
+        action: 'claude_response',
+        response: response.trim(),
+        data: { usedClaudeCode: true, duration: result.duration },
+      };
+    } else {
       return {
         success: false,
-        action: 'unknown',
-        response: "I'm not sure what you want me to do. Try asking for help to see available commands.",
+        action: 'claude_error',
+        response: result.error || "I couldn't process that request. Try a simpler command or say 'help' for options.",
+        data: { usedClaudeCode: true, error: result.error },
       };
+    }
+  } catch (error) {
+    log.error('[Clawdbot] Claude Code error:', error);
+    return {
+      success: false,
+      action: 'unknown',
+      response: "I'm having trouble connecting to Claude. Try using specific commands like 'go to tasks' or 'what's the status'.",
+    };
   }
 }
 

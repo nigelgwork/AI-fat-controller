@@ -11,9 +11,10 @@ import {
   HelpCircle,
   Settings,
   Bot,
+  Trash2,
 } from 'lucide-react';
 import { useTTS, TTSToggle } from '../components/TTSOutput';
-import type { Intent, ActionResult } from '../types/electron.d';
+import type { Intent, ActionResult, ClawdbotMessage } from '../types/electron.d';
 
 interface Message {
   id: string;
@@ -22,6 +23,7 @@ interface Message {
   timestamp: Date;
   intent?: Intent;
   action?: ActionResult;
+  usedClaudeCode?: boolean;
 }
 
 interface CommandCategory {
@@ -102,14 +104,44 @@ export default function Clawdbot() {
     // Load available commands
     window.electronAPI?.getAvailableCommands?.().then(setAvailableCommands);
 
-    // Add initial greeting
-    const greeting = getGreeting();
-    setMessages([{
-      id: '1',
-      role: 'assistant',
-      content: greeting,
-      timestamp: new Date(),
-    }]);
+    // Load persisted messages or add initial greeting
+    window.electronAPI?.getClawdbotMessages?.().then((persistedMessages: ClawdbotMessage[] | undefined) => {
+      if (persistedMessages && persistedMessages.length > 0) {
+        // Convert persisted messages to local format
+        const converted = persistedMessages.map((m: ClawdbotMessage) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          timestamp: new Date(m.timestamp),
+          usedClaudeCode: m.usedClaudeCode,
+        }));
+        setMessages(converted);
+      } else {
+        // Add initial greeting
+        const greeting = getGreeting();
+        const greetingMessage = {
+          id: '1',
+          role: 'assistant' as const,
+          content: greeting,
+          timestamp: new Date(),
+        };
+        setMessages([greetingMessage]);
+        // Persist the greeting
+        window.electronAPI?.addClawdbotMessage?.({
+          role: 'assistant',
+          content: greeting,
+        });
+      }
+    }).catch(() => {
+      // Fallback if API not available
+      const greeting = getGreeting();
+      setMessages([{
+        id: '1',
+        role: 'assistant',
+        content: greeting,
+        timestamp: new Date(),
+      }]);
+    });
   }, []);
 
   // Scroll to bottom when messages change
@@ -194,6 +226,12 @@ export default function Clawdbot() {
     };
     setMessages(prev => [...prev, userMessage]);
 
+    // Persist user message
+    window.electronAPI?.addClawdbotMessage?.({
+      role: 'user',
+      content: messageText,
+    });
+
     // Check for confirmation response
     if (pendingConfirmation) {
       const isYes = /^(yes|yeah|yep|ok|okay|sure|confirm|do it)$/i.test(messageText);
@@ -202,12 +240,12 @@ export default function Clawdbot() {
       if (isYes) {
         const result = await window.electronAPI?.executeConfirmedAction?.(pendingConfirmation);
         const response = result?.response || 'Done.';
-        addAssistantMessage(response);
+        addAssistantMessage(response, undefined, false);
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
       } else if (isNo) {
-        addAssistantMessage('Cancelled.');
+        addAssistantMessage('Cancelled.', undefined, false);
       } else {
-        addAssistantMessage('Please say yes or no to confirm.');
+        addAssistantMessage('Please say yes or no to confirm.', undefined, false);
         return;
       }
       setPendingConfirmation(null);
@@ -221,45 +259,59 @@ export default function Clawdbot() {
       if (intent) {
         userMessage.intent = intent;
 
-        // If unknown intent, provide helpful response
-        if (intent.type === 'unknown') {
-          addAssistantMessage(
-            "I'm not sure what you want me to do. Try saying something like:\n" +
-            "- \"Go to tasks\"\n" +
-            "- \"Create a task called Update README\"\n" +
-            "- \"What's the status?\"\n" +
-            "Or say \"help\" to see all available commands."
-          );
-          return;
-        }
-
-        // Dispatch action
+        // Dispatch action - handles both known and unknown intents
+        // Unknown intents are now routed to Claude Code
         const result = await dispatchActionMutation.mutateAsync(intent);
         if (result) {
-          addAssistantMessage(result.response, result);
+          const usedClaude = result.data?.usedClaudeCode === true;
+          addAssistantMessage(result.response, result, usedClaude);
         }
       }
     } catch (error) {
       console.error('Error processing command:', error);
-      addAssistantMessage("Sorry, I encountered an error processing your request.");
+      addAssistantMessage("Sorry, I encountered an error processing your request.", undefined, false);
     }
   }, [inputText, pendingConfirmation, parseIntentMutation, dispatchActionMutation, queryClient, stopSpeaking]);
 
   // Add assistant message
-  const addAssistantMessage = (content: string, action?: ActionResult) => {
+  const addAssistantMessage = (content: string, action?: ActionResult, usedClaudeCode?: boolean) => {
     const message: Message = {
       id: Date.now().toString(),
       role: 'assistant',
       content,
       timestamp: new Date(),
       action,
+      usedClaudeCode,
     };
     setMessages(prev => [...prev, message]);
+
+    // Persist the message
+    window.electronAPI?.addClawdbotMessage?.({
+      role: 'assistant',
+      content,
+      usedClaudeCode,
+    });
 
     // Speak if TTS enabled
     if (ttsEnabled) {
       speak(content);
     }
+  };
+
+  // Clear conversation
+  const clearConversation = () => {
+    window.electronAPI?.clearClawdbotMessages?.();
+    const greeting = getGreeting();
+    setMessages([{
+      id: '1',
+      role: 'assistant',
+      content: greeting,
+      timestamp: new Date(),
+    }]);
+    window.electronAPI?.addClawdbotMessage?.({
+      role: 'assistant',
+      content: greeting,
+    });
   };
 
   // Toggle listening
@@ -310,6 +362,13 @@ export default function Clawdbot() {
         </div>
         <div className="flex items-center gap-2">
           <TTSToggle enabled={ttsEnabled} onToggle={setTtsEnabled} />
+          <button
+            onClick={clearConversation}
+            className="p-2 rounded-lg bg-slate-700 text-slate-400 hover:text-red-400 transition-colors"
+            title="Clear conversation"
+          >
+            <Trash2 size={20} />
+          </button>
           <button
             onClick={() => setShowHelp(!showHelp)}
             className={`p-2 rounded-lg transition-colors ${
@@ -373,13 +432,20 @@ export default function Clawdbot() {
               className={`max-w-[80%] rounded-lg px-4 py-2 ${
                 message.role === 'user'
                   ? 'bg-cyan-500 text-white'
-                  : 'bg-slate-700 text-slate-200'
+                  : message.usedClaudeCode
+                    ? 'bg-slate-700 text-slate-200 border border-purple-500/30'
+                    : 'bg-slate-700 text-slate-200'
               }`}
             >
               <p className="whitespace-pre-wrap">{message.content}</p>
-              <span className="text-xs opacity-60 mt-1 block">
-                {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs opacity-60">
+                  {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+                {message.usedClaudeCode && (
+                  <span className="text-xs text-purple-400">via Claude Code</span>
+                )}
+              </div>
             </div>
             {message.role === 'user' && (
               <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center">
