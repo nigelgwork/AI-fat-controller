@@ -50,6 +50,7 @@ export function initAutoUpdater(window: BrowserWindow): void {
   });
 
   autoUpdater.on('update-available', (info: UpdateInfo) => {
+    log.info(`[AutoUpdater] info.version type: ${typeof info.version}, value: ${JSON.stringify(info.version)}`);
     const version = typeof info.version === 'string' ? info.version : String(info.version);
     log.info(`[AutoUpdater] Update available: ${version}`);
     updateStatus = {
@@ -88,6 +89,7 @@ export function initAutoUpdater(window: BrowserWindow): void {
   });
 
   autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
+    log.info(`[AutoUpdater] info.version type: ${typeof info.version}, value: ${JSON.stringify(info.version)}`);
     const version = typeof info.version === 'string' ? info.version : String(info.version);
     log.info(`[AutoUpdater] Update downloaded: ${version}`);
     updateStatus = {
