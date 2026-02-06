@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/api';
 import {
   FolderGit,
   Plus,
@@ -46,17 +47,17 @@ export default function Projects() {
 
   const { data: projects, isLoading, refetch } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => window.electronAPI?.listProjects() as Promise<Project[]>,
+    queryFn: () => api.listProjects() as Promise<Project[]>,
   });
 
   const { data: discovered, isLoading: isDiscovering, refetch: runDiscover } = useQuery({
     queryKey: ['discovered-projects'],
-    queryFn: () => window.electronAPI?.discoverProjects() as Promise<Project[]>,
+    queryFn: () => api.discoverProjects() as Promise<Project[]>,
     enabled: showDiscover,
   });
 
   const addMutation = useMutation({
-    mutationFn: (path: string) => window.electronAPI?.addProject(path) as Promise<Project>,
+    mutationFn: (path: string) => api.addProject(path) as Promise<Project>,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['discovered-projects'] });
@@ -64,14 +65,14 @@ export default function Projects() {
   });
 
   const removeMutation = useMutation({
-    mutationFn: (id: string) => window.electronAPI?.removeProject(id) as Promise<void>,
+    mutationFn: (id: string) => api.removeProject(id) as Promise<void>,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 
   const handleBrowse = async () => {
-    const path = await window.electronAPI?.browseForProject();
+    const path = await api.browseForProject();
     if (path) {
       addMutation.mutate(path);
     }
@@ -239,20 +240,20 @@ function ProjectRow({ project, onRemove }: { project: Project; onRemove: () => v
   // Fetch existing brief
   const { data: brief, isLoading: briefLoading } = useQuery({
     queryKey: ['project-brief', project.id],
-    queryFn: () => window.electronAPI?.getProjectBrief(project.id) as Promise<ProjectBrief | null>,
+    queryFn: () => api.getProjectBrief(project.id) as Promise<ProjectBrief | null>,
     enabled: showBrief,
   });
 
   // Fetch existing deep dive plan
   const { data: deepDive, isLoading: deepDiveLoading } = useQuery({
     queryKey: ['deep-dive', project.id],
-    queryFn: () => window.electronAPI?.getDeepDivePlan(project.id) as Promise<DeepDivePlan | null>,
+    queryFn: () => api.getDeepDivePlan(project.id) as Promise<DeepDivePlan | null>,
     enabled: showDeepDive,
   });
 
   // Generate brief mutation
   const generateBriefMutation = useMutation({
-    mutationFn: () => window.electronAPI!.generateProjectBrief(project.id, project.path, project.name) as Promise<ProjectBrief>,
+    mutationFn: () => api.generateProjectBrief(project.id, project.path, project.name) as Promise<ProjectBrief>,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-brief', project.id] });
     },
@@ -260,7 +261,7 @@ function ProjectRow({ project, onRemove }: { project: Project; onRemove: () => v
 
   // Generate deep dive mutation
   const generateDeepDiveMutation = useMutation({
-    mutationFn: (focus: string | undefined = undefined) => window.electronAPI!.generateDeepDivePlan(project.id, project.path, project.name, focus) as Promise<DeepDivePlan>,
+    mutationFn: (focus: string | undefined = undefined) => api.generateDeepDivePlan(project.id, project.path, project.name, focus) as Promise<DeepDivePlan>,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['deep-dive', project.id] });
     },
@@ -515,7 +516,7 @@ function DeepDivePlanView({ plan, onRegenerate, isRegenerating }: { plan: DeepDi
   // Mutation to add a single task to project tasks
   const addTaskMutation = useMutation({
     mutationFn: async (taskId: string) => {
-      return window.electronAPI!.convertDeepDiveTaskToProjectTask(plan.projectId, taskId);
+      return api.convertDeepDiveTaskToProjectTask(plan.projectId, taskId);
     },
     onSuccess: (result, taskId) => {
       if (result.success) {
@@ -529,7 +530,7 @@ function DeepDivePlanView({ plan, onRegenerate, isRegenerating }: { plan: DeepDi
   // Mutation to add all tasks to project tasks
   const addAllTasksMutation = useMutation({
     mutationFn: async () => {
-      return window.electronAPI!.convertDeepDiveToTasks(plan.projectId);
+      return api.convertDeepDiveToTasks(plan.projectId);
     },
     onSuccess: (result) => {
       if (result.success) {
@@ -769,14 +770,14 @@ function CloneFromGitDialog({
 
   // Load projects directory on mount
   useEffect(() => {
-    window.electronAPI?.getProjectsDirectory().then((dir) => {
+    api.getProjectsDirectory().then((dir) => {
       setProjectsDir(dir);
     });
   }, []);
 
   // Set up progress listener
   useEffect(() => {
-    const unsubscribe = window.electronAPI?.onCloneProgress((p) => {
+    const unsubscribe = api.onCloneProgress((p) => {
       setProgress(p);
       if (p.stage === 'error') {
         setError(p.message);
@@ -793,7 +794,7 @@ function CloneFromGitDialog({
       return;
     }
 
-    window.electronAPI?.isValidGitUrl(repoUrl).then((valid) => {
+    api.isValidGitUrl(repoUrl).then((valid) => {
       setIsValidUrl(valid);
     });
 
@@ -810,7 +811,7 @@ function CloneFromGitDialog({
       setIsCloning(true);
       setError(null);
       setProgress({ stage: 'cloning', message: 'Starting clone...', percentage: 0 });
-      return window.electronAPI?.cloneFromGit(options);
+      return api.cloneFromGit(options);
     },
     onSuccess: (result) => {
       setIsCloning(false);
@@ -837,7 +838,7 @@ function CloneFromGitDialog({
     mutationFn: async () => {
       if (!cloneResult?.cloneResult?.projectPath) return;
       const commandsToRun = detectedSetup.filter((_, i) => selectedSetup.has(i));
-      return window.electronAPI?.runProjectSetup(
+      return api.runProjectSetup(
         cloneResult.cloneResult.projectPath,
         commandsToRun
       );

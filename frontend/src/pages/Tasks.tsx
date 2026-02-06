@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/api';
 import {
   CheckSquare,
   Plus,
@@ -27,17 +28,17 @@ export default function Tasks() {
 
   const { data: tasks, isLoading } = useQuery({
     queryKey: ['tasks'],
-    queryFn: () => window.electronAPI?.listTasks(),
+    queryFn: () => api.listTasks(),
     refetchInterval: 10000,
   });
 
   const { data: projects } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => window.electronAPI?.listProjects(),
+    queryFn: () => api.listProjects(),
   });
 
   const createMutation = useMutation({
-    mutationFn: (input: CreateTaskInput) => window.electronAPI!.createTask(input),
+    mutationFn: (input: CreateTaskInput) => api.createTask(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['tasks-stats'] });
@@ -47,7 +48,7 @@ export default function Tasks() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: UpdateTaskInput }) =>
-      window.electronAPI!.updateTask(id, updates),
+      api.updateTask(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['tasks-stats'] });
@@ -56,7 +57,7 @@ export default function Tasks() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => window.electronAPI!.deleteTask(id),
+    mutationFn: (id: string) => api.deleteTask(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['tasks-stats'] });
@@ -71,7 +72,7 @@ export default function Tasks() {
     mutationFn: (id: string) => {
       setSendingTaskId(id);
       setSendError(null);
-      return window.electronAPI!.sendTaskToClaude(id);
+      return api.sendTaskToClaude(id);
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });

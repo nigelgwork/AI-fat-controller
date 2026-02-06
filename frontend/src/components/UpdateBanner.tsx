@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { api, isElectron } from '@/api';
 import { Download, X, RefreshCw } from 'lucide-react';
 
 interface UpdateStatus {
@@ -11,6 +12,12 @@ interface UpdateStatus {
 }
 
 export default function UpdateBanner() {
+  if (!isElectron()) return null;
+
+  return <UpdateBannerInner />;
+}
+
+function UpdateBannerInner() {
   const [status, setStatus] = useState<UpdateStatus>({
     checking: false,
     available: false,
@@ -23,26 +30,26 @@ export default function UpdateBanner() {
 
   useEffect(() => {
     // Get initial status
-    window.electronAPI?.getUpdateStatus?.().then((s) => {
+    api.getUpdateStatus?.().then((s) => {
       if (s) setStatus(s);
     });
 
     // Subscribe to update events
     const unsubs = [
-      window.electronAPI?.onUpdateChecking?.(() => {
+      api.onUpdateChecking?.(() => {
         setStatus(s => ({ ...s, checking: true }));
       }),
-      window.electronAPI?.onUpdateAvailable?.((data) => {
+      api.onUpdateAvailable?.((data) => {
         setStatus(s => ({ ...s, checking: false, available: true, version: data.version }));
         setDismissed(false);
       }),
-      window.electronAPI?.onUpdateNotAvailable?.(() => {
+      api.onUpdateNotAvailable?.(() => {
         setStatus(s => ({ ...s, checking: false }));
       }),
-      window.electronAPI?.onUpdateProgress?.((data) => {
+      api.onUpdateProgress?.((data) => {
         setStatus(s => ({ ...s, downloading: true, progress: data.percent }));
       }),
-      window.electronAPI?.onUpdateDownloaded?.((data) => {
+      api.onUpdateDownloaded?.((data) => {
         setStatus(s => ({ ...s, downloading: false, downloaded: true, version: data.version, progress: 100 }));
         setDismissed(false);
       }),
@@ -55,11 +62,11 @@ export default function UpdateBanner() {
 
   const handleCheckForUpdates = async () => {
     setStatus(s => ({ ...s, checking: true }));
-    await window.electronAPI?.checkForUpdates();
+    await api.checkForUpdates();
   };
 
   const handleInstallUpdate = () => {
-    window.electronAPI?.installUpdate();
+    api.installUpdate();
   };
 
   // Show just a check button if no update activity

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { api } from '@/api';
 import { Monitor, Terminal } from 'lucide-react';
 
 type Mode = 'windows' | 'wsl';
@@ -9,12 +10,12 @@ export default function ModeToggle() {
 
   useEffect(() => {
     // Get current mode on mount
-    window.electronAPI?.getMode().then(setMode).catch(() => {
-      // Default to windows if electronAPI not available
+    api.getMode().then(setMode).catch(() => {
+      // Default to windows if api not available
     });
 
     // Listen for mode changes
-    const cleanup = window.electronAPI?.onModeChanged((newMode) => {
+    const cleanup = api.onModeChanged((newMode) => {
       setMode(newMode);
     });
 
@@ -26,7 +27,7 @@ export default function ModeToggle() {
 
     setLoading(true);
     try {
-      await window.electronAPI?.setMode(newMode);
+      await api.setMode(newMode);
       setMode(newMode);
     } catch (error) {
       console.error('Failed to switch mode:', error);

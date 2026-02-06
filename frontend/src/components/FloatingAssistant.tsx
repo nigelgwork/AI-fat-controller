@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { api } from '@/api';
 import {
   Bot,
   X,
@@ -61,7 +62,7 @@ export default function FloatingAssistant() {
   // Fetch projects list
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => window.electronAPI?.listProjects() ?? Promise.resolve([]),
+    queryFn: () => api.listProjects() ?? Promise.resolve([]),
     staleTime: 30000,
   });
 
@@ -126,7 +127,7 @@ export default function FloatingAssistant() {
 
       // Save to temp file via IPC
       const filename = file.name || `pasted-image-${Date.now()}.png`;
-      const result = await window.electronAPI?.saveImageToTemp(base64, filename);
+      const result = await api.saveImageToTemp(base64, filename);
 
       if (result?.success && result.path) {
         // Create a blob URL for preview
@@ -240,7 +241,7 @@ export default function FloatingAssistant() {
 
     try {
       // Pass project path and images to Claude
-      const result = await window.electronAPI?.executeClaudeCode(
+      const result = await api.executeClaudeCode(
         input.trim(),
         undefined,  // Use default system prompt from backend
         selectedProjectPath || undefined,

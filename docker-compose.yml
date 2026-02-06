@@ -1,0 +1,15 @@
+services:
+  controller:
+    build: .
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/data
+      - ${HOME:-~}:/host-home:ro
+    environment:
+      - DATA_DIR=/app/data
+      - GASTOWN_PATH=${GASTOWN_PATH:-/host-home/gt}
+      - EXECUTION_MODE=${EXECUTION_MODE:-linux}
+      - PORT=3001
+      - NODE_ENV=production
+    restart: unless-stopped

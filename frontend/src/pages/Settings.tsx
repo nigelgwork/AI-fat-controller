@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
+import { api } from '@/api';
 import { Settings as SettingsIcon, Monitor, Terminal, Folder, RefreshCw, Download, Info, Cpu, Save, Bug, CheckCircle, XCircle, Bell, Send, Gauge, AlertTriangle, FileText } from 'lucide-react';
 import type { NtfyConfig, UsageLimitConfig } from '../types/gastown';
 import MCPServerConfigPanel from '../components/MCPServerConfig';
@@ -9,12 +10,12 @@ export default function Settings() {
 
   const { data: settings } = useQuery({
     queryKey: ['settings'],
-    queryFn: () => window.electronAPI?.getAllSettings(),
+    queryFn: () => api.getAllSettings(),
   });
 
   const { data: modeStatus, refetch: refetchStatus, isRefetching } = useQuery({
     queryKey: ['mode-status-settings'],
-    queryFn: () => window.electronAPI?.detectModes(),
+    queryFn: () => api.detectModes(),
   });
 
   const [defaultMode, setDefaultMode] = useState<'windows' | 'wsl' | 'auto'>('auto');
@@ -34,7 +35,7 @@ export default function Settings() {
   const saveMutation = useMutation({
     mutationFn: async (updates: Record<string, unknown>) => {
       for (const [key, value] of Object.entries(updates)) {
-        await window.electronAPI?.setSetting(key as never, value as never);
+        await api.setSetting(key as never, value as never);
       }
     },
     onSuccess: () => {
@@ -248,7 +249,7 @@ function NtfyCard() {
 
   const { data: config, isLoading } = useQuery({
     queryKey: ['ntfy-config'],
-    queryFn: () => window.electronAPI?.getNtfyConfig(),
+    queryFn: () => api.getNtfyConfig(),
   });
 
   const [localConfig, setLocalConfig] = useState<Partial<NtfyConfig>>({});
@@ -260,7 +261,7 @@ function NtfyCard() {
   }, [config]);
 
   const saveMutation = useMutation({
-    mutationFn: (updates: Partial<NtfyConfig>) => window.electronAPI!.setNtfyConfig(updates),
+    mutationFn: (updates: Partial<NtfyConfig>) => api.setNtfyConfig(updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ntfy-config'] });
     },
@@ -275,9 +276,9 @@ function NtfyCard() {
     setTestResult(null);
     try {
       // First save the config
-      await window.electronAPI?.setNtfyConfig(localConfig);
+      await api.setNtfyConfig(localConfig);
       // Then test
-      const result = await window.electronAPI?.testNtfyConnection();
+      const result = await api.testNtfyConnection();
       setTestResult(result || { success: false, error: 'Unknown error' });
     } catch (error) {
       setTestResult({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
@@ -603,31 +604,31 @@ function AboutCard() {
   });
 
   useEffect(() => {
-    window.electronAPI?.getVersion().then(setVersion);
+    api.getVersion().then(setVersion);
 
     // Get initial status
-    window.electronAPI?.getUpdateStatus?.().then((s) => {
+    api.getUpdateStatus().then((s) => {
       if (s) setStatus(s);
     });
 
     // Subscribe to update events
     const unsubs = [
-      window.electronAPI?.onUpdateChecking?.(() => {
+      api.onUpdateChecking(() => {
         setStatus(s => ({ ...s, checking: true, error: null }));
       }),
-      window.electronAPI?.onUpdateAvailable?.((data) => {
+      api.onUpdateAvailable((data) => {
         setStatus(s => ({ ...s, checking: false, available: true, version: data.version }));
       }),
-      window.electronAPI?.onUpdateNotAvailable?.(() => {
+      api.onUpdateNotAvailable(() => {
         setStatus(s => ({ ...s, checking: false, available: false }));
       }),
-      window.electronAPI?.onUpdateProgress?.((data) => {
+      api.onUpdateProgress((data) => {
         setStatus(s => ({ ...s, downloading: true, progress: data.percent }));
       }),
-      window.electronAPI?.onUpdateDownloaded?.((data) => {
+      api.onUpdateDownloaded((data) => {
         setStatus(s => ({ ...s, downloading: false, downloaded: true, version: data.version, progress: 100 }));
       }),
-      window.electronAPI?.onUpdateError?.((data) => {
+      api.onUpdateError((data) => {
         setStatus(s => ({ ...s, checking: false, downloading: false, error: data.error }));
       }),
     ];
@@ -639,11 +640,11 @@ function AboutCard() {
 
   const handleCheckForUpdates = async () => {
     setStatus(s => ({ ...s, checking: true, error: null }));
-    await window.electronAPI?.checkForUpdates();
+    await api.checkForUpdates();
   };
 
   const handleInstallUpdate = () => {
-    window.electronAPI?.installUpdate();
+    api.installUpdate();
   };
 
   const getStatusText = () => {
@@ -734,7 +735,7 @@ interface DebugInfo {
 function DebugCard() {
   const { data: debugInfo, isLoading, refetch } = useQuery({
     queryKey: ['debug-info'],
-    queryFn: () => window.electronAPI?.getDebugInfo() as Promise<DebugInfo>,
+    queryFn: () => api.getDebugInfo() as Promise<DebugInfo>,
   });
 
   const StatusIcon = ({ exists }: { exists: boolean }) => (
@@ -816,12 +817,12 @@ function UsageLimitsCard() {
 
   const { data: config, isLoading } = useQuery({
     queryKey: ['usage-limit-config'],
-    queryFn: () => window.electronAPI?.getUsageLimitConfig(),
+    queryFn: () => api.getUsageLimitConfig(),
   });
 
   const { data: percentages } = useQuery({
     queryKey: ['usage-percentages'],
-    queryFn: () => window.electronAPI?.getUsagePercentages(),
+    queryFn: () => api.getUsagePercentages(),
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
@@ -835,7 +836,7 @@ function UsageLimitsCard() {
 
   const saveMutation = useMutation({
     mutationFn: async (updates: Partial<UsageLimitConfig>) => {
-      await window.electronAPI?.updateUsageLimitConfig(updates);
+      await api.updateUsageLimitConfig(updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['usage-limit-config'] });

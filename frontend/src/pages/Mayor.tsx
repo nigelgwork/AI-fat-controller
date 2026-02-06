@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { api } from '@/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Crown,
@@ -25,47 +26,47 @@ export default function Mayor() {
   // Fetch Mayor state
   const { data: mayorState, isLoading: stateLoading } = useQuery({
     queryKey: ['mayor-state'],
-    queryFn: () => window.electronAPI?.getMayorState(),
+    queryFn: () => api.getMayorState(),
     refetchInterval: 2000,
   });
 
   // Fetch approval queue
   const { data: approvalQueue = [] } = useQuery({
     queryKey: ['approval-queue'],
-    queryFn: () => window.electronAPI?.getApprovalQueue(),
+    queryFn: () => api.getApprovalQueue(),
     refetchInterval: 2000,
   });
 
   // Fetch action logs
   const { data: actionLogs = [] } = useQuery({
     queryKey: ['action-logs'],
-    queryFn: () => window.electronAPI?.getActionLogs(50),
+    queryFn: () => api.getActionLogs(50),
     refetchInterval: 5000,
   });
 
   // Mutations
   const activateMutation = useMutation({
-    mutationFn: () => window.electronAPI!.activateMayor(),
+    mutationFn: () => api.activateMayor(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mayor-state'] }),
   });
 
   const deactivateMutation = useMutation({
-    mutationFn: () => window.electronAPI!.deactivateMayor(),
+    mutationFn: () => api.deactivateMayor(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mayor-state'] }),
   });
 
   const pauseMutation = useMutation({
-    mutationFn: () => window.electronAPI!.pauseMayor(),
+    mutationFn: () => api.pauseMayor(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mayor-state'] }),
   });
 
   const resumeMutation = useMutation({
-    mutationFn: () => window.electronAPI!.resumeMayor(),
+    mutationFn: () => api.resumeMayor(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mayor-state'] }),
   });
 
   const approveMutation = useMutation({
-    mutationFn: (id: string) => window.electronAPI!.approveRequest(id),
+    mutationFn: (id: string) => api.approveRequest(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['approval-queue'] });
       queryClient.invalidateQueries({ queryKey: ['mayor-state'] });
@@ -76,7 +77,7 @@ export default function Mayor() {
 
   const rejectMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
-      window.electronAPI!.rejectRequest(id, reason),
+      api.rejectRequest(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['approval-queue'] });
       queryClient.invalidateQueries({ queryKey: ['mayor-state'] });
@@ -87,15 +88,15 @@ export default function Mayor() {
 
   // Listen for real-time updates
   useEffect(() => {
-    const unsubState = window.electronAPI?.onMayorStateChanged?.(() => {
+    const unsubState = api.onMayorStateChanged?.(() => {
       queryClient.invalidateQueries({ queryKey: ['mayor-state'] });
     });
 
-    const unsubApproval = window.electronAPI?.onApprovalRequired?.(() => {
+    const unsubApproval = api.onApprovalRequired?.(() => {
       queryClient.invalidateQueries({ queryKey: ['approval-queue'] });
     });
 
-    const unsubAction = window.electronAPI?.onActionCompleted?.(() => {
+    const unsubAction = api.onActionCompleted?.(() => {
       queryClient.invalidateQueries({ queryKey: ['action-logs'] });
     });
 

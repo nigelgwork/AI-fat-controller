@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Monitor, Terminal, Folder, Check, Loader2 } from 'lucide-react';
+import { api } from '@/api';
 
 interface SetupProps {
   onComplete: () => void;
@@ -20,7 +21,7 @@ export default function Setup({ onComplete }: SetupProps) {
 
   useEffect(() => {
     // Detect available modes
-    window.electronAPI?.detectModes().then((status) => {
+    api.detectModes().then((status) => {
       setModeStatus(status);
       // Auto-select based on availability
       if (status.windows.available) {
@@ -39,10 +40,10 @@ export default function Setup({ onComplete }: SetupProps) {
   const handleFinish = async () => {
     setSaving(true);
     try {
-      await window.electronAPI?.setSetting('executionMode', selectedMode);
-      await window.electronAPI?.setSetting('defaultMode', selectedMode);
-      await window.electronAPI?.setSetting('gastownPath', gastownPath);
-      await window.electronAPI?.setSetting('hasCompletedSetup', true);
+      await api.setSetting('executionMode', selectedMode);
+      await api.setSetting('defaultMode', selectedMode);
+      await api.setSetting('gastownPath', gastownPath);
+      await api.setSetting('hasCompletedSetup', true);
       onComplete();
     } catch (error) {
       console.error('Failed to save settings:', error);

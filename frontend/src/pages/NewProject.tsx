@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { api } from '@/api';
 import {
   ArrowLeft,
   Sparkles,
@@ -110,8 +111,7 @@ export default function NewProject() {
   };
 
   const browseForPath = async () => {
-    if (!window.electronAPI) return;
-    const path = await window.electronAPI.browseForProject();
+    const path = await api.browseForProject();
     if (path) {
       setTargetPath(path);
     }
@@ -151,11 +151,6 @@ export default function NewProject() {
   };
 
   const createProject = async () => {
-    if (!window.electronAPI) {
-      setError('Electron API not available');
-      return;
-    }
-
     setIsCreating(true);
     setStep('creating');
     setError(null);
@@ -169,11 +164,11 @@ export default function NewProject() {
     };
 
     try {
-      const result = await window.electronAPI.scaffoldNewProject(targetPath, spec);
+      const result = await api.scaffoldNewProject(targetPath, spec);
 
       if (result.success) {
         // Add the project to the list
-        await window.electronAPI.addProject(`${targetPath}/${name}`);
+        await api.addProject(`${targetPath}/${name}`);
         navigate('/projects');
       } else {
         setError(result.error || 'Failed to create project');

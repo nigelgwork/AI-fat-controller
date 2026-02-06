@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { api } from '@/api';
 import { Cpu, Clock, TrendingUp, DollarSign, AlertTriangle, RefreshCw } from 'lucide-react';
 
 // Claude pricing per 1M tokens (approximate for Claude 3.5 Sonnet)
@@ -14,19 +15,19 @@ interface TokenUsageDisplayProps {
 export default function TokenUsageDisplay({ compact = false }: TokenUsageDisplayProps) {
   const { data: controllerState } = useQuery({
     queryKey: ['controller-state'],
-    queryFn: () => window.electronAPI?.getControllerState(),
+    queryFn: () => api.getControllerState(),
     refetchInterval: 5000,
   });
 
   const { data: percentages } = useQuery({
     queryKey: ['usage-percentages'],
-    queryFn: () => window.electronAPI?.getUsagePercentages(),
+    queryFn: () => api.getUsagePercentages(),
     refetchInterval: 5000,
   });
 
   const { data: tokenHistory } = useQuery({
     queryKey: ['token-history', 7],
-    queryFn: () => window.electronAPI?.getTokenHistory?.(7),
+    queryFn: () => api.getTokenHistory?.(7),
     refetchInterval: 30000,
   });
 

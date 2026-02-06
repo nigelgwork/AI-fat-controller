@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Circle, ArrowRight } from 'lucide-react';
+import { api } from '@/api';
 import CollapsibleHelp from '../components/CollapsibleHelp';
 
 interface Bead {
@@ -13,7 +14,7 @@ interface Bead {
 export default function Beads() {
   const { data: beads, isLoading } = useQuery({
     queryKey: ['beads'],
-    queryFn: () => window.electronAPI?.listBeads() as Promise<Bead[]>,
+    queryFn: () => api.listBeads() as Promise<Bead[]>,
     refetchInterval: 10000,
   });
 

@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { api } from './api';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Controller from './pages/Controller';
@@ -30,10 +31,10 @@ function App() {
 
   useEffect(() => {
     // Check if setup has been completed
-    window.electronAPI?.getSetting('hasCompletedSetup').then((completed) => {
+    api.getSetting('hasCompletedSetup').then((completed) => {
       setHasCompletedSetup(completed);
     }).catch(() => {
-      // If electronAPI not available (dev mode without electron), skip setup
+      // If API not available (dev mode), skip setup
       setHasCompletedSetup(true);
     });
   }, []);

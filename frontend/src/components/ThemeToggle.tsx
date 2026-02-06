@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { api } from '@/api';
 import { Moon, Sun, Monitor } from 'lucide-react';
 
 type Theme = 'dark' | 'light' | 'system';
@@ -12,7 +13,7 @@ export default function ThemeToggle({ compact = false }: ThemeToggleProps) {
 
   useEffect(() => {
     // Load theme from settings
-    window.electronAPI?.getSetting('theme').then((savedTheme) => {
+    api.getSetting('theme').then((savedTheme) => {
       if (savedTheme) {
         setTheme(savedTheme);
         applyTheme(savedTheme);
@@ -34,7 +35,7 @@ export default function ThemeToggle({ compact = false }: ThemeToggleProps) {
   const handleThemeChange = async (newTheme: Theme) => {
     setTheme(newTheme);
     applyTheme(newTheme);
-    await window.electronAPI?.setSetting('theme', newTheme);
+    await api.setSetting('theme', newTheme);
   };
 
   const cycleTheme = () => {

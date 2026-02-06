@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { api } from '@/api';
 import {
   Terminal, RefreshCw, Activity, FolderGit, Clock, Cpu, FileCode, Bot,
   History, Copy, Check, MessageSquare, RotateCcw
@@ -45,19 +46,19 @@ function formatDuration(isoString: string): string {
 export default function Sessions() {
   const { data: sessions, isLoading: isLoadingSessions, refetch: refetchSessions } = useQuery({
     queryKey: ['claude-sessions'],
-    queryFn: () => window.electronAPI?.getClaudeSessions() as Promise<ClaudeSession[]>,
+    queryFn: () => api.getClaudeSessions() as Promise<ClaudeSession[]>,
     refetchInterval: 5000,
   });
 
   const { data: projects } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => window.electronAPI?.listProjects() as Promise<Project[]>,
+    queryFn: () => api.listProjects() as Promise<Project[]>,
   });
 
   // Resumable sessions from ~/.claude/projects/
   const { data: resumableSessions, refetch: refetchResumable } = useQuery({
     queryKey: ['resumable-claude-sessions'],
-    queryFn: () => window.electronAPI?.getRecentClaudeSessions?.(10) as Promise<ClaudeCodeSession[]>,
+    queryFn: () => api.getRecentClaudeSessions(10) as Promise<ClaudeCodeSession[]>,
     staleTime: 60000, // Refresh every minute
   });
 

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { api } from '@/api';
 import { Boxes, Package, ArrowRight, GitPullRequest, CheckCircle, Clock, RefreshCw } from 'lucide-react';
 import CollapsibleHelp from '../components/CollapsibleHelp';
 import { ConvoyList, type Convoy } from '../components/ConvoyProgress';
@@ -59,7 +60,7 @@ export default function Convoys() {
   const { data: result, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['convoys'],
     queryFn: async () => {
-      const result = await window.electronAPI?.executeGt(['convoy', 'list', '--json']);
+      const result = await api.executeGt(['convoy', 'list', '--json']);
       if (result?.success && result.response) {
         try {
           return JSON.parse(result.response);

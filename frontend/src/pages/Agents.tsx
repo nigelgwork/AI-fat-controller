@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/api';
 import {
   Bot, RefreshCw, Plus, Trash2, Edit2, Save, X, ChevronRight, Package,
   FileText, Wand2, Code, Search, Hammer, Monitor, Terminal
@@ -23,11 +24,11 @@ export default function Agents() {
 
   const { data: agents, isLoading: isLoadingAgents, refetch: refetchAgents } = useQuery({
     queryKey: ['claude-agents'],
-    queryFn: () => window.electronAPI?.listAgents() as Promise<ClaudeAgent[]>,
+    queryFn: () => api.listAgents() as Promise<ClaudeAgent[]>,
   });
 
   const createMutation = useMutation({
-    mutationFn: (agent: Partial<ClaudeAgent>) => window.electronAPI!.createAgent(agent),
+    mutationFn: (agent: Partial<ClaudeAgent>) => api.createAgent(agent),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['claude-agents'] });
       setIsCreating(false);
@@ -37,7 +38,7 @@ export default function Agents() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<ClaudeAgent> }) =>
-      window.electronAPI!.updateAgent(id, updates),
+      api.updateAgent(id, updates),
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ['claude-agents'] });
       setSelectedAgent(updated);
@@ -46,7 +47,7 @@ export default function Agents() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => window.electronAPI!.deleteAgent(id),
+    mutationFn: (id: string) => api.deleteAgent(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['claude-agents'] });
       setSelectedAgent(null);
@@ -54,7 +55,7 @@ export default function Agents() {
   });
 
   const copyToWindowsMutation = useMutation({
-    mutationFn: (id: string) => window.electronAPI!.copyAgentToWindows(id),
+    mutationFn: (id: string) => api.copyAgentToWindows(id),
     onSuccess: (newAgent) => {
       queryClient.invalidateQueries({ queryKey: ['claude-agents'] });
       setSelectedAgent(newAgent);
@@ -62,7 +63,7 @@ export default function Agents() {
   });
 
   const copyToWslMutation = useMutation({
-    mutationFn: (id: string) => window.electronAPI!.copyAgentToWsl(id),
+    mutationFn: (id: string) => api.copyAgentToWsl(id),
     onSuccess: (newAgent) => {
       queryClient.invalidateQueries({ queryKey: ['claude-agents'] });
       setSelectedAgent(newAgent);

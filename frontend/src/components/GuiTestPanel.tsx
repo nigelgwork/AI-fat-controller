@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { api } from '@/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Play,
@@ -44,13 +45,13 @@ export default function GuiTestPanel({ className = '' }: GuiTestPanelProps) {
   // Fetch test scenarios
   const { data: scenarios = [], isLoading } = useQuery({
     queryKey: ['gui-tests'],
-    queryFn: () => window.electronAPI?.listGuiTests() as Promise<TestScenario[]>,
+    queryFn: () => api.listGuiTests() as Promise<TestScenario[]>,
   });
 
   // Fetch connected MCP servers
   const { data: connectedServers = [] } = useQuery({
     queryKey: ['mcp-connected'],
-    queryFn: () => window.electronAPI?.getConnectedMcpServers() as Promise<string[]>,
+    queryFn: () => api.getConnectedMcpServers() as Promise<string[]>,
   });
 
   // Run test mutation
@@ -59,15 +60,15 @@ export default function GuiTestPanel({ className = '' }: GuiTestPanelProps) {
       setRunningTest(scenarioId);
       setTestProgress(null);
       // Use the new runWithConfig API if available, otherwise fall back to standard
-      if (window.electronAPI?.runGuiTestWithConfig) {
-        return window.electronAPI.runGuiTestWithConfig(scenarioId, {
+      if (api.runGuiTestWithConfig) {
+        return api.runGuiTestWithConfig(scenarioId, {
           mode: executionMode,
           mcpServerName: connectedServers[0], // Use first connected server
           takeScreenshotsAfterSteps: true,
           stopOnFirstFailure: true,
         }) as Promise<TestResult>;
       }
-      return window.electronAPI?.runGuiTest(scenarioId) as Promise<TestResult>;
+      return api.runGuiTest(scenarioId) as Promise<TestResult>;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gui-tests'] });
@@ -83,7 +84,7 @@ export default function GuiTestPanel({ className = '' }: GuiTestPanelProps) {
   // Generate test mutation
   const generateTestMutation = useMutation({
     mutationFn: async ({ description, appName }: { description: string; appName?: string }) => {
-      return window.electronAPI?.generateGuiTest(description, appName) as Promise<TestScenario>;
+      return api.generateGuiTest(description, appName) as Promise<TestScenario>;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gui-tests'] });
@@ -95,17 +96,17 @@ export default function GuiTestPanel({ className = '' }: GuiTestPanelProps) {
 
   // Delete test mutation
   const deleteTestMutation = useMutation({
-    mutationFn: (id: string) => window.electronAPI?.deleteGuiTest(id) as Promise<boolean>,
+    mutationFn: (id: string) => api.deleteGuiTest(id) as Promise<boolean>,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['gui-tests'] }),
   });
 
   // Listen for test progress
   useEffect(() => {
-    const unsubProgress = window.electronAPI?.onGuiTestProgress?.((data) => {
+    const unsubProgress = api.onGuiTestProgress?.((data) => {
       setTestProgress(data);
     });
 
-    const unsubComplete = window.electronAPI?.onGuiTestComplete?.(() => {
+    const unsubComplete = api.onGuiTestComplete?.(() => {
       setRunningTest(null);
       setTestProgress(null);
       queryClient.invalidateQueries({ queryKey: ['gui-tests'] });

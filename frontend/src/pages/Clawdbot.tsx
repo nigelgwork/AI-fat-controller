@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { api } from '@/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Sparkles,
@@ -64,7 +65,7 @@ export default function Clawdbot() {
   // Query for recent Claude sessions
   const { data: recentSessions = [] } = useQuery({
     queryKey: ['claude-sessions'],
-    queryFn: () => window.electronAPI?.getRecentClaudeSessions?.(5) as Promise<ClaudeCodeSession[]>,
+    queryFn: () => api.getRecentClaudeSessions(5) as Promise<ClaudeCodeSession[]>,
     staleTime: 30000, // Refresh every 30 seconds
   });
 
@@ -117,10 +118,10 @@ export default function Clawdbot() {
     }
 
     // Load available commands
-    window.electronAPI?.getAvailableCommands?.().then(setAvailableCommands);
+    api.getAvailableCommands().then(setAvailableCommands);
 
     // Load persisted messages or add initial greeting
-    window.electronAPI?.getClawdbotMessages?.().then((persistedMessages: ClawdbotMessage[] | undefined) => {
+    api.getClawdbotMessages().then((persistedMessages: ClawdbotMessage[] | undefined) => {
       if (persistedMessages && persistedMessages.length > 0) {
         // Convert persisted messages to local format
         const converted = persistedMessages.map((m: ClawdbotMessage) => ({
@@ -142,7 +143,7 @@ export default function Clawdbot() {
         };
         setMessages([greetingMessage]);
         // Persist the greeting
-        window.electronAPI?.addClawdbotMessage?.({
+        api.addClawdbotMessage({
           role: 'assistant',
           content: greeting,
         });
@@ -167,7 +168,7 @@ export default function Clawdbot() {
   // Parse intent mutation
   const parseIntentMutation = useMutation({
     mutationFn: async (text: string) => {
-      const intent = await window.electronAPI?.parseIntent?.(text);
+      const intent = await api.parseIntent(text);
       return intent;
     },
   });
@@ -175,7 +176,7 @@ export default function Clawdbot() {
   // Dispatch action mutation
   const dispatchActionMutation = useMutation({
     mutationFn: async ({ intent, sessionId }: { intent: Intent; sessionId?: string }) => {
-      const result = await window.electronAPI?.dispatchAction?.(intent, sessionId);
+      const result = await api.dispatchAction(intent, sessionId);
       return result;
     },
     onSuccess: (result) => {
@@ -189,16 +190,16 @@ export default function Clawdbot() {
         const action = result.data.controllerAction as string;
         switch (action) {
           case 'pause':
-            window.electronAPI?.pauseController();
+            api.pauseController();
             break;
           case 'resume':
-            window.electronAPI?.resumeController();
+            api.resumeController();
             break;
           case 'activate':
-            window.electronAPI?.activateController();
+            api.activateController();
             break;
           case 'deactivate':
-            window.electronAPI?.deactivateController();
+            api.deactivateController();
             break;
         }
         queryClient.invalidateQueries({ queryKey: ['controller-state'] });
@@ -206,13 +207,13 @@ export default function Clawdbot() {
 
       // Handle task execution
       if (result?.data?.executeTaskId) {
-        window.electronAPI?.sendTaskToClaude(result.data.executeTaskId as string);
+        api.sendTaskToClaude(result.data.executeTaskId as string);
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
       }
 
       // Handle settings changes
       if (result?.data?.settingAction === 'theme') {
-        window.electronAPI?.setSetting('theme', result.data.value as 'dark' | 'light' | 'system');
+        api.setSetting('theme', result.data.value as 'dark' | 'light' | 'system');
         queryClient.invalidateQueries({ queryKey: ['settings'] });
       }
 
@@ -242,7 +243,7 @@ export default function Clawdbot() {
     setMessages(prev => [...prev, userMessage]);
 
     // Persist user message
-    window.electronAPI?.addClawdbotMessage?.({
+    api.addClawdbotMessage({
       role: 'user',
       content: messageText,
     });
@@ -253,7 +254,7 @@ export default function Clawdbot() {
       const isNo = /^(no|nope|cancel|never mind|don't)$/i.test(messageText);
 
       if (isYes) {
-        const result = await window.electronAPI?.executeConfirmedAction?.(pendingConfirmation);
+        const result = await api.executeConfirmedAction(pendingConfirmation);
         const response = result?.response || 'Done.';
         addAssistantMessage(response, undefined, false);
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
@@ -305,7 +306,7 @@ export default function Clawdbot() {
     setMessages(prev => [...prev, message]);
 
     // Persist the message
-    window.electronAPI?.addClawdbotMessage?.({
+    api.addClawdbotMessage({
       role: 'assistant',
       content,
       usedClaudeCode,
@@ -319,7 +320,7 @@ export default function Clawdbot() {
 
   // Clear conversation
   const clearConversation = () => {
-    window.electronAPI?.clearClawdbotMessages?.();
+    api.clearClawdbotMessages();
     const greeting = getGreeting();
     setMessages([{
       id: '1',
@@ -327,7 +328,7 @@ export default function Clawdbot() {
       content: greeting,
       timestamp: new Date(),
     }]);
-    window.electronAPI?.addClawdbotMessage?.({
+    api.addClawdbotMessage({
       role: 'assistant',
       content: greeting,
     });
@@ -362,7 +363,7 @@ export default function Clawdbot() {
     setMessages(prev => [...prev, message]);
 
     // Persist
-    window.electronAPI?.addClawdbotMessage?.({
+    api.addClawdbotMessage({
       role: 'assistant',
       content: message.content,
       usedClaudeCode: true,
@@ -384,7 +385,7 @@ export default function Clawdbot() {
       };
       setMessages(prev => [...prev, message]);
 
-      window.electronAPI?.addClawdbotMessage?.({
+      api.addClawdbotMessage({
         role: 'assistant',
         content: message.content,
       });

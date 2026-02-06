@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { api } from '@/api';
 import {
   Activity,
   Search,
@@ -44,7 +45,7 @@ export default function ActivityLog() {
   const { data: logs, isLoading, refetch } = useQuery({
     queryKey: ['activity-logs', categoryFilter, dateRange],
     queryFn: () =>
-      window.electronAPI?.getActivityLogs?.({
+      api.getActivityLogs({
         category: categoryFilter === 'all' ? undefined : categoryFilter,
         startDate: dateRange.start || undefined,
         endDate: dateRange.end || undefined,
@@ -57,7 +58,7 @@ export default function ActivityLog() {
   const { data: summary } = useQuery({
     queryKey: ['activity-summary', dateRange],
     queryFn: () =>
-      window.electronAPI?.getActivitySummary?.({
+      api.getActivitySummary({
         start: dateRange.start || undefined,
         end: dateRange.end || undefined,
       }),
@@ -69,7 +70,7 @@ export default function ActivityLog() {
     queryKey: ['activity-search', searchQuery, categoryFilter],
     queryFn: () =>
       searchQuery
-        ? window.electronAPI?.searchActivityLogs?.(searchQuery, {
+        ? api.searchActivityLogs(searchQuery, {
             category: categoryFilter === 'all' ? undefined : categoryFilter,
             limit: 100,
           })
@@ -80,7 +81,7 @@ export default function ActivityLog() {
   // Export mutation
   const exportMutation = useMutation({
     mutationFn: async (format: 'json' | 'csv') => {
-      const data = await window.electronAPI?.exportActivityLogs?.(format, {
+      const data = await api.exportActivityLogs(format, {
         start: dateRange.start || undefined,
         end: dateRange.end || undefined,
       });
@@ -98,7 +99,7 @@ export default function ActivityLog() {
 
   // Clear mutation
   const clearMutation = useMutation({
-    mutationFn: () => window.electronAPI?.clearActivityLogs?.() ?? Promise.resolve({ success: false }),
+    mutationFn: () => api.clearActivityLogs() ?? Promise.resolve({ success: false }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activity-logs'] });
       queryClient.invalidateQueries({ queryKey: ['activity-summary'] });

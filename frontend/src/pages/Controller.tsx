@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/api';
 import {
   Crown,
   Play,
@@ -71,54 +72,54 @@ export default function Controller() {
   // Fetch Controller state
   const { data: controllerState, isLoading: stateLoading } = useQuery({
     queryKey: ['controller-state'],
-    queryFn: () => window.electronAPI?.getControllerState(),
+    queryFn: () => api.getControllerState(),
     refetchInterval: 2000,
   });
 
   // Fetch approval queue
   const { data: approvalQueue = [] } = useQuery({
     queryKey: ['approval-queue'],
-    queryFn: () => window.electronAPI?.getApprovalQueue(),
+    queryFn: () => api.getApprovalQueue(),
     refetchInterval: 2000,
   });
 
   // Fetch action logs
   const { data: actionLogs = [] } = useQuery({
     queryKey: ['action-logs'],
-    queryFn: () => window.electronAPI?.getActionLogs(50),
+    queryFn: () => api.getActionLogs(50),
     refetchInterval: 5000,
   });
 
   // Fetch conversation sessions
   const { data: conversationSessions = [] } = useQuery({
     queryKey: ['conversation-sessions'],
-    queryFn: () => window.electronAPI?.listConversationSessions(),
+    queryFn: () => api.listConversationSessions(),
     refetchInterval: 10000,
   });
 
   // Mutations
   const activateMutation = useMutation({
-    mutationFn: () => window.electronAPI!.activateController(),
+    mutationFn: () => api.activateController(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['controller-state'] }),
   });
 
   const deactivateMutation = useMutation({
-    mutationFn: () => window.electronAPI!.deactivateController(),
+    mutationFn: () => api.deactivateController(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['controller-state'] }),
   });
 
   const pauseMutation = useMutation({
-    mutationFn: () => window.electronAPI!.pauseController(),
+    mutationFn: () => api.pauseController(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['controller-state'] }),
   });
 
   const resumeMutation = useMutation({
-    mutationFn: () => window.electronAPI!.resumeController(),
+    mutationFn: () => api.resumeController(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['controller-state'] }),
   });
 
   const approveMutation = useMutation({
-    mutationFn: (id: string) => window.electronAPI!.approveRequest(id),
+    mutationFn: (id: string) => api.approveRequest(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['approval-queue'] });
       queryClient.invalidateQueries({ queryKey: ['controller-state'] });
@@ -129,7 +130,7 @@ export default function Controller() {
 
   const rejectMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
-      window.electronAPI!.rejectRequest(id, reason),
+      api.rejectRequest(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['approval-queue'] });
       queryClient.invalidateQueries({ queryKey: ['controller-state'] });
@@ -139,7 +140,7 @@ export default function Controller() {
   });
 
   const createSessionMutation = useMutation({
-    mutationFn: () => window.electronAPI!.createConversationSession('general', 'General'),
+    mutationFn: () => api.createConversationSession('general', 'General'),
     onSuccess: (session) => {
       setSelectedSessionId(session.id);
       setMessages([]);
@@ -148,7 +149,7 @@ export default function Controller() {
   });
 
   const deleteSessionMutation = useMutation({
-    mutationFn: (sessionId: string) => window.electronAPI!.deleteConversationSession(sessionId),
+    mutationFn: (sessionId: string) => api.deleteConversationSession(sessionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversation-sessions'] });
       if (selectedSessionId) {
@@ -161,7 +162,7 @@ export default function Controller() {
   // Load conversation when session changes
   useEffect(() => {
     if (selectedSessionId) {
-      window.electronAPI?.loadConversation(selectedSessionId).then((entries) => {
+      api.loadConversation(selectedSessionId).then((entries) => {
         const msgs: Message[] = entries.map((e) => ({
           id: e.id,
           role: e.role,
@@ -176,15 +177,15 @@ export default function Controller() {
 
   // Listen for real-time updates
   useEffect(() => {
-    const unsubState = window.electronAPI?.onControllerStateChanged?.(() => {
+    const unsubState = api.onControllerStateChanged(() => {
       queryClient.invalidateQueries({ queryKey: ['controller-state'] });
     });
 
-    const unsubApproval = window.electronAPI?.onApprovalRequired?.(() => {
+    const unsubApproval = api.onApprovalRequired(() => {
       queryClient.invalidateQueries({ queryKey: ['approval-queue'] });
     });
 
-    const unsubAction = window.electronAPI?.onActionCompleted?.(() => {
+    const unsubAction = api.onActionCompleted(() => {
       queryClient.invalidateQueries({ queryKey: ['action-logs'] });
     });
 
@@ -197,7 +198,7 @@ export default function Controller() {
 
   // Subscribe to executor streaming events
   useEffect(() => {
-    const unsubExecutor = window.electronAPI?.onExecutorLog?.((log) => {
+    const unsubExecutor = api.onExecutorLog((log) => {
       const event: StreamingEvent = {
         id: `${log.executionId || 'unknown'}-${Date.now()}`,
         type: log.type as StreamingEvent['type'],
@@ -269,7 +270,7 @@ export default function Controller() {
 
     // Save to conversation if session exists
     if (selectedSessionId) {
-      await window.electronAPI?.appendConversationEntry(selectedSessionId, {
+      await api.appendConversationEntry(selectedSessionId, {
         role: 'user',
         content: userMessage.content,
       });
@@ -286,12 +287,12 @@ export default function Controller() {
         const args = parts.slice(1);
 
         if (cmd === 'gt') {
-          result = await window.electronAPI?.executeGt(args);
+          result = await api.executeGt(args);
         } else {
-          result = await window.electronAPI?.executeBd(args);
+          result = await api.executeBd(args);
         }
       } else {
-        result = await window.electronAPI?.executeClaudeCode(input.trim());
+        result = await api.executeClaudeCode(input.trim());
       }
 
       const assistantMessage: Message = {
@@ -305,7 +306,7 @@ export default function Controller() {
 
       // Save to conversation if session exists
       if (selectedSessionId) {
-        await window.electronAPI?.appendConversationEntry(selectedSessionId, {
+        await api.appendConversationEntry(selectedSessionId, {
           role: 'assistant',
           content: assistantMessage.content,
         });
@@ -704,7 +705,7 @@ export default function Controller() {
                             <button
                               onClick={() => {
                                 // Cancel the current execution
-                                window.electronAPI?.cancelDeepDiveTask?.('general', 'current');
+                                api.cancelDeepDiveTask('general', 'current');
                                 setLoading(false);
                                 setStreamingEvents([]);
                                 setCurrentExecutionId(null);

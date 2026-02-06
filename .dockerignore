@@ -1,0 +1,11 @@
+node_modules
+dist
+dist-server
+dist-electron
+release
+data
+.git
+.env
+.env.local
+*.log
+resources/bin

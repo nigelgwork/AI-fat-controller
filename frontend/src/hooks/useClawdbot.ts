@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/api';
 
 export type TraitLevel = 'low' | 'medium' | 'high';
 
@@ -27,7 +28,7 @@ export function usePersonalities() {
   return useQuery({
     queryKey: ['clawdbot-personalities'],
     queryFn: async () => {
-      const personalities = await window.electronAPI?.getPersonalities();
+      const personalities = await api.getPersonalities();
       return personalities || [];
     },
     staleTime: 30000, // Cache for 30 seconds
@@ -42,7 +43,7 @@ export function usePersonality(id: string | null) {
     queryKey: ['clawdbot-personality', id],
     queryFn: async () => {
       if (!id) return null;
-      return window.electronAPI?.getPersonality(id);
+      return api.getPersonality(id);
     },
     enabled: !!id,
   });
@@ -55,7 +56,7 @@ export function useCurrentPersonality() {
   return useQuery({
     queryKey: ['clawdbot-current-personality'],
     queryFn: async () => {
-      return window.electronAPI?.getCurrentPersonality();
+      return api.getCurrentPersonality();
     },
     staleTime: 10000, // Cache for 10 seconds
   });
@@ -68,7 +69,7 @@ export function useCurrentPersonalityId() {
   return useQuery({
     queryKey: ['clawdbot-current-personality-id'],
     queryFn: async () => {
-      return window.electronAPI?.getCurrentPersonalityId();
+      return api.getCurrentPersonalityId();
     },
     staleTime: 10000,
   });
@@ -82,7 +83,7 @@ export function useSetCurrentPersonality() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const success = await window.electronAPI?.setCurrentPersonality(id);
+      const success = await api.setCurrentPersonality(id);
       if (!success) {
         throw new Error('Failed to set personality');
       }
@@ -105,7 +106,7 @@ export function useSavePersonality() {
     mutationFn: async (
       personality: Omit<ClawdbotPersonality, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
     ) => {
-      return window.electronAPI?.savePersonality(personality);
+      return api.savePersonality(personality);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clawdbot-personalities'] });
@@ -122,7 +123,7 @@ export function useDeletePersonality() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const success = await window.electronAPI?.deletePersonality(id);
+      const success = await api.deletePersonality(id);
       if (!success) {
         throw new Error('Cannot delete default personality');
       }
@@ -143,7 +144,7 @@ export function useClawdbotGreeting() {
   return useQuery({
     queryKey: ['clawdbot-greeting'],
     queryFn: async () => {
-      return window.electronAPI?.getClawdbotGreeting() ?? 'Hello! How can I help you today?';
+      return api.getClawdbotGreeting() ?? 'Hello! How can I help you today?';
     },
     staleTime: 10000,
   });

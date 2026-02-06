@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { api } from '@/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Server,
@@ -34,26 +35,26 @@ export default function MCPServerConfigPanel({ className = '' }: MCPServerConfig
   // Fetch MCP server configs
   const { data: configs = [], isLoading: loadingConfigs } = useQuery({
     queryKey: ['mcp-configs'],
-    queryFn: () => window.electronAPI?.getMcpConfigs() as Promise<MCPServerConfig[]>,
+    queryFn: () => api.getMcpConfigs() as Promise<MCPServerConfig[]>,
   });
 
   // Fetch connected servers
   const { data: connectedServers = [] } = useQuery({
     queryKey: ['mcp-connected'],
-    queryFn: () => window.electronAPI?.getConnectedMcpServers() as Promise<string[]>,
+    queryFn: () => api.getConnectedMcpServers() as Promise<string[]>,
     refetchInterval: 5000, // Refresh every 5 seconds
   });
 
   // Fetch default configs
   const { data: defaultConfigs = [] } = useQuery({
     queryKey: ['mcp-default-configs'],
-    queryFn: () => window.electronAPI?.getMcpDefaultConfigs() as Promise<MCPServerConfig[]>,
+    queryFn: () => api.getMcpDefaultConfigs() as Promise<MCPServerConfig[]>,
   });
 
   // Add config mutation
   const addConfigMutation = useMutation({
     mutationFn: (config: MCPServerConfig) =>
-      window.electronAPI?.addMcpConfig(config) as Promise<MCPServerConfig[]>,
+      api.addMcpConfig(config) as Promise<MCPServerConfig[]>,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mcp-configs'] });
       setShowAddForm(false);
@@ -64,7 +65,7 @@ export default function MCPServerConfigPanel({ className = '' }: MCPServerConfig
   // Remove config mutation
   const removeConfigMutation = useMutation({
     mutationFn: (name: string) =>
-      window.electronAPI?.removeMcpConfig(name) as Promise<MCPServerConfig[]>,
+      api.removeMcpConfig(name) as Promise<MCPServerConfig[]>,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mcp-configs'] });
       queryClient.invalidateQueries({ queryKey: ['mcp-connected'] });
@@ -74,7 +75,7 @@ export default function MCPServerConfigPanel({ className = '' }: MCPServerConfig
   // Connect server mutation
   const connectMutation = useMutation({
     mutationFn: (name: string) =>
-      window.electronAPI?.connectMcpServer(name) as Promise<{ connected: boolean; tools: MCPTool[] }>,
+      api.connectMcpServer(name) as Promise<{ connected: boolean; tools: MCPTool[] }>,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mcp-connected'] });
     },
@@ -83,7 +84,7 @@ export default function MCPServerConfigPanel({ className = '' }: MCPServerConfig
   // Disconnect server mutation
   const disconnectMutation = useMutation({
     mutationFn: (name: string) =>
-      window.electronAPI?.disconnectMcpServer(name) as Promise<boolean>,
+      api.disconnectMcpServer(name) as Promise<boolean>,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mcp-connected'] });
     },
@@ -91,7 +92,7 @@ export default function MCPServerConfigPanel({ className = '' }: MCPServerConfig
 
   // Server tools query
   const getServerTools = async (name: string): Promise<MCPTool[]> => {
-    return window.electronAPI?.getMcpServerTools(name) as Promise<MCPTool[]>;
+    return api.getMcpServerTools(name) as Promise<MCPTool[]>;
   };
 
   const isConnected = (name: string) => connectedServers.includes(name);

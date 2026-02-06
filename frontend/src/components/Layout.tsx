@@ -1,5 +1,6 @@
 import { Outlet, NavLink } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { api } from '@/api';
 import {
   LayoutDashboard,
   Monitor,
@@ -33,7 +34,7 @@ export default function Layout() {
   const [version, setVersion] = useState<string>('');
 
   useEffect(() => {
-    window.electronAPI?.getVersion().then(setVersion);
+    api.getVersion().then(setVersion);
   }, []);
 
   return (

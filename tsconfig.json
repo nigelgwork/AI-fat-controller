@@ -17,9 +17,10 @@
     "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
     "paths": {
-      "@/*": ["./frontend/src/*"]
+      "@/*": ["./frontend/src/*"],
+      "@shared/*": ["./shared/*"]
     },
     "baseUrl": "."
   },
-  "include": ["frontend/src"]
+  "include": ["frontend/src", "shared"]
 }

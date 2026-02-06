@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { CheckSquare, RefreshCw, FolderGit, Monitor } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { api } from '@/api';
 import type { TasksStats } from '../types/gastown';
 
 interface ClaudeSession {
@@ -22,18 +23,18 @@ interface SystemStatus {
 export default function Dashboard() {
   const { data: taskStats } = useQuery({
     queryKey: ['tasks-stats'],
-    queryFn: () => window.electronAPI?.getTasksStats() as Promise<TasksStats>,
+    queryFn: () => api.getTasksStats() as Promise<TasksStats>,
     refetchInterval: 30000,
   });
 
   const { data: modeStatus, refetch: refetchModeStatus, isRefetching } = useQuery({
     queryKey: ['mode-status'],
-    queryFn: () => window.electronAPI?.getModeStatus(),
+    queryFn: () => api.getModeStatus(),
   });
 
   const { data: systemStatus } = useQuery({
     queryKey: ['system-status'],
-    queryFn: () => window.electronAPI?.getSystemStatus() as Promise<SystemStatus>,
+    queryFn: () => api.getSystemStatus() as Promise<SystemStatus>,
     refetchInterval: 10000,
   });
 

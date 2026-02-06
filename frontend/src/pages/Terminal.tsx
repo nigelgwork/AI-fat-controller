@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2 } from 'lucide-react';
+import { api } from '@/api';
 
 interface Message {
   id: string;
@@ -48,12 +49,12 @@ export default function Terminal() {
         const args = parts.slice(1);
 
         if (cmd === 'gt') {
-          result = await window.electronAPI?.executeGt(args);
+          result = await api.executeGt(args);
         } else {
-          result = await window.electronAPI?.executeBd(args);
+          result = await api.executeBd(args);
         }
       } else {
-        result = await window.electronAPI?.executeClaudeCode(input.trim());
+        result = await api.executeClaudeCode(input.trim());
       }
 
       const assistantMessage: Message = {

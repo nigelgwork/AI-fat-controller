@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { api } from '@/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Terminal,
@@ -27,21 +28,21 @@ export default function ActiveSessions({ showHistory = false, maxHistoryItems = 
   // Query active sessions
   const { data: activeSessions } = useQuery({
     queryKey: ['sessions', 'active'],
-    queryFn: () => window.electronAPI?.getActiveSessions?.() ?? Promise.resolve([]),
+    queryFn: () => api.getActiveSessions?.() ?? Promise.resolve([]),
     refetchInterval: 2000, // Poll every 2 seconds
   });
 
   // Query session history
   const { data: sessionHistory } = useQuery({
     queryKey: ['sessions', 'history', maxHistoryItems],
-    queryFn: () => window.electronAPI?.getSessionHistory?.(maxHistoryItems) ?? Promise.resolve([]),
+    queryFn: () => api.getSessionHistory?.(maxHistoryItems) ?? Promise.resolve([]),
     enabled: showHistory,
     refetchInterval: 10000, // Poll every 10 seconds
   });
 
   // Cancel session mutation
   const cancelMutation = useMutation({
-    mutationFn: (sessionId: string) => window.electronAPI?.cancelSession?.(sessionId) ?? Promise.resolve({ success: false }),
+    mutationFn: (sessionId: string) => api.cancelSession?.(sessionId) ?? Promise.resolve({ success: false }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
     },
@@ -49,9 +50,7 @@ export default function ActiveSessions({ showHistory = false, maxHistoryItems = 
 
   // Listen for real-time session updates
   useEffect(() => {
-    if (!window.electronAPI?.onSessionUpdate) return;
-
-    const unsubUpdate = window.electronAPI.onSessionUpdate(() => {
+    const unsubUpdate = api.onSessionUpdate?.(() => {
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
     });
 
@@ -62,9 +61,7 @@ export default function ActiveSessions({ showHistory = false, maxHistoryItems = 
 
   // Listen for real-time log updates
   useEffect(() => {
-    if (!window.electronAPI?.onSessionLog) return;
-
-    const unsubLog = window.electronAPI.onSessionLog((data) => {
+    const unsubLog = api.onSessionLog?.((data) => {
       setSessionLogs((prev) => ({
         ...prev,
         [data.sessionId]: [...(prev[data.sessionId] || []), data.entry].slice(-50), // Keep last 50
@@ -78,9 +75,9 @@ export default function ActiveSessions({ showHistory = false, maxHistoryItems = 
 
   // Load logs when expanding a session
   const loadSessionLogs = async (sessionId: string) => {
-    if (!window.electronAPI?.getSessionLogs) return;
+    if (!api.getSessionLogs) return;
     try {
-      const logs = await window.electronAPI.getSessionLogs(sessionId, 50);
+      const logs = await api.getSessionLogs(sessionId, 50);
       setSessionLogs((prev) => ({ ...prev, [sessionId]: logs }));
     } catch (e) {
       console.error('Failed to load session logs:', e);
