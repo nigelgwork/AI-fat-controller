@@ -30,7 +30,7 @@ export default function Setup({ onComplete }: SetupProps) {
         setSelectedMode('wsl');
       }
       // Set default gastownPath
-      setGastownPath('C:\\Users\\' + (process.env.USERNAME || 'user') + '\\gt');
+      setGastownPath('~/gt');
       setDetecting(false);
     }).catch(() => {
       setDetecting(false);
