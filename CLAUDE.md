@@ -6,8 +6,8 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 AI Controller (forked from Gastown UI) is a dashboard + backend for multi-agent orchestration. It includes:
 
-- **Frontend**: Next.js 16 dashboard for monitoring agents, beads, convoys, and insights
-- **Backend**: Gas Town CLI (`gt`) - the orchestrator (MIT licensed, from steveyegge/gastown)
+- **Frontend**: Vite + React dashboard for monitoring agents, beads, convoys, and insights
+- **Backend**: Electron IPC — all backend functionality runs through Electron main process
 - **Beads CLI**: (`bd`) - git-backed issue tracker (MIT licensed, from steveyegge/beads)
 - **Claude Code Bridge**: Integration layer that routes natural language commands through Claude Code CLI
 
@@ -31,11 +31,9 @@ The setup script will:
 
 ```bash
 pnpm setup       # Full setup (Go tools + Node deps + workspace init)
-pnpm dev         # Start dashboard at http://localhost:3000
-pnpm terminal    # Start terminal WebSocket server (port 3001)
-pnpm dev:all     # Start both dashboard and terminal server
-pnpm gastown     # Start both with GASTOWN_PATH env set
-pnpm build       # Build for production
+pnpm dev         # Start Vite dev server at http://localhost:3001
+pnpm dev:electron # Start full Electron dev workflow (Vite + tsc watch + Electron)
+pnpm build       # Build for production (typecheck + compile Electron + Vite + electron-builder)
 ```
 
 ## Environment Variables
@@ -68,14 +66,14 @@ Create `.env.local` with your configuration.
 pgrep -a node
 
 # 2. Kill any existing dev servers
-pkill -f "next dev" || true
+pkill -f "vite" || true
 
 # 3. Run ONE command in foreground (not background)
 pnpm dev
 # Ctrl+C to stop when done
 
 # 4. For API testing, use curl instead of running dev server
-curl http://localhost:3000/api/beads
+curl http://localhost:3001/api/beads
 ```
 
 ### Dangerous Patterns to Avoid:
@@ -99,26 +97,25 @@ for i in {1..10}; do claude "test" & done
 
 ```
 ai-controller/
-├── src/                    # Next.js frontend
-│   ├── app/                # App Router pages
-│   │   ├── page.tsx        # Town Overview (home)
-│   │   ├── agents/         # Agent management
-│   │   ├── beads/          # Work items list
-│   │   ├── convoys/        # Grouped work packages
-│   │   ├── graph/          # React Flow dependency graph
-│   │   ├── insights/       # Graph analytics (from bv)
-│   │   ├── mail/           # Agent communication
-│   │   ├── terminal/       # Controller chat (Claude Code powered)
-│   │   └── api/            # API routes (calls gt/bd CLIs + Claude Code)
-│   ├── components/         # Shared components
-│   ├── lib/                # Utilities (beads.ts, gastown.ts)
-│   └── types/              # TypeScript definitions
-├── backend/                # Gas Town Go source (cloned)
-├── beads-cli/              # Beads Go source (cloned)
+├── frontend/               # Vite + React frontend
+│   ├── src/                # React source
+│   │   ├── App.tsx         # Main app component
+│   │   ├── components/     # Shared components
+│   │   ├── lib/            # Utilities
+│   │   └── types/          # TypeScript definitions
+│   └── index.html          # Entry HTML
+├── electron/               # Electron main process (TypeScript)
+│   ├── main.ts             # Main process entry
+│   ├── preload.ts          # Preload script (contextBridge)
+│   ├── ipc/                # IPC handlers
+│   ├── services/           # Backend services (executor, settings, etc.)
+│   ├── stores/             # Persistent stores
+│   └── utils/              # Utilities (logger, etc.)
+├── dist-electron/          # Compiled Electron JS (from tsc)
 ├── bin/                    # Built CLI binaries (gt, bd)
 ├── scripts/
 │   ├── setup.sh            # Full setup script
-│   └── claude-bridge.sh    # Claude Code CLI bridge
+│   └── build-go-tools.sh   # Go CLI build script
 └── docs/                   # Documentation
 ```
 
@@ -126,12 +123,13 @@ ai-controller/
 
 ### Frontend Tech Stack
 
-- Next.js 16 (App Router) + React 19
+- Vite + React 19
 - TypeScript 5
-- Tailwind CSS 4
+- Tailwind CSS
 - @xyflow/react (React Flow) for dependency graphs
 - TanStack Query for data fetching
 - Lucide React for icons
+- Zustand for state management
 
 ### Backend Integration
 
@@ -270,5 +268,5 @@ gt prime
 
 # Or use the dashboard
 pnpm dev
-# Open http://localhost:3000
+# Open http://localhost:3001
 ```

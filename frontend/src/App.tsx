@@ -30,10 +30,14 @@ function App() {
 
   useEffect(() => {
     // Check if setup has been completed
-    window.electronAPI?.getSetting('hasCompletedSetup').then((completed) => {
+    if (!window.electronAPI) {
+      // Dev mode without Electron — skip setup
+      setHasCompletedSetup(true);
+      return;
+    }
+    window.electronAPI.getSetting('hasCompletedSetup').then((completed) => {
       setHasCompletedSetup(completed);
     }).catch(() => {
-      // If electronAPI not available (dev mode without electron), skip setup
       setHasCompletedSetup(true);
     });
   }, []);

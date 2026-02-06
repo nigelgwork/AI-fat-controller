@@ -1,13 +1,13 @@
-# Gas Town UI
+# AI Controller
 
-Web dashboard for [Gas Town](https://github.com/steveyegge/gastown) - a multi-agent orchestrator for Claude Code.
+Electron desktop app for multi-agent orchestration with Claude Code.
 
-![Gas Town Dashboard](docs/screenshot.png)
+![AI Controller Dashboard](docs/screenshot.png)
 
 ## Features
 
 - **Town Overview**: Real-time stats on agents, work items, and system health
-- **Mayor Chat**: AI-powered chat interface to coordinate work (requires Anthropic API key)
+- **Controller Chat**: AI-powered chat interface to coordinate work via Claude Code CLI
 - **Agent Management**: Monitor agent status, context usage, and trigger handoffs
 - **Convoy Tracking**: Track grouped work packages with progress visualization
 - **Beads Browser**: Filter and search work items by status, type, and priority
@@ -27,26 +27,28 @@ Web dashboard for [Gas Town](https://github.com/steveyegge/gastown) - a multi-ag
 
 ```bash
 # Clone this repo
-git clone https://github.com/yourusername/gastown-ui.git
-cd gastown-ui
+git clone https://github.com/nigelgwork/AI-phat-controller.git
+cd AI-phat-controller
 
 # One-command setup
 pnpm setup
 ```
 
 The setup script will:
-1. ✅ Check prerequisites
-2. ✅ Clone and build Gas Town (`gt`) and Beads (`bd`) CLIs
-3. ✅ Install Node dependencies
-4. ✅ Initialize a Gas Town workspace at `~/gt`
+1. Check prerequisites
+2. Clone and build Gas Town (`gt`) and Beads (`bd`) CLIs
+3. Install Node dependencies
+4. Initialize a Gas Town workspace at `~/gt`
 
 ### Running
 
 ```bash
-# Start the dashboard
-pnpm dev
+# Start the Electron app (full dev workflow)
+pnpm dev:electron
 
-# Open http://localhost:3000
+# Or start just the Vite dev server
+pnpm dev
+# Open http://localhost:3001
 ```
 
 ## Configuration
@@ -56,20 +58,7 @@ Create `.env.local`:
 ```bash
 # Required: Path to your Gas Town workspace
 GASTOWN_PATH=~/gt
-
-# Optional: Enable AI-powered Mayor Chat
-# Get your key at https://console.anthropic.com/settings/keys
-ANTHROPIC_API_KEY=sk-ant-...
 ```
-
-### Mayor Chat
-
-The Mayor Chat provides an AI-powered interface to coordinate work across your rigs. Without an API key, it runs in "command mode" where you can execute gt/bd commands directly. With an API key, you can use natural language to:
-
-- Create and manage convoys
-- Assign work to agents
-- Check status and get recommendations
-- Coordinate complex multi-rig operations
 
 ## Using with Gas Town
 
@@ -89,34 +78,28 @@ gt convoy list
 ## Project Structure
 
 ```
-gastown-ui/
-├── src/
-│   ├── app/              # Next.js pages
-│   │   ├── page.tsx      # Town Overview
-│   │   ├── terminal/     # Mayor Chat interface
-│   │   ├── agents/       # Agent management
-│   │   ├── beads/        # Work items
-│   │   ├── convoys/      # Grouped work
-│   │   ├── graph/        # Dependency graph
-│   │   ├── insights/     # Analytics
-│   │   ├── mail/         # Agent mail
-│   │   └── api/          # Backend routes
-│   ├── components/       # Shared UI
-│   ├── lib/              # Utilities
-│   └── types/            # TypeScript types
-├── backend/              # Gas Town source (cloned)
-├── beads-cli/            # Beads source (cloned)
-├── bin/                  # Built CLI binaries
-└── scripts/setup.sh      # Setup script
+ai-controller/
+├── frontend/              # Vite + React frontend
+│   ├── src/               # React source
+│   └── index.html         # Entry HTML
+├── electron/              # Electron main process (TypeScript)
+│   ├── main.ts            # Main process entry
+│   ├── preload.ts         # Preload script
+│   ├── ipc/               # IPC handlers
+│   └── services/          # Backend services
+├── dist-electron/         # Compiled Electron JS
+├── bin/                   # Built CLI binaries
+└── scripts/setup.sh       # Setup script
 ```
 
 ## Tech Stack
 
-- **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS 4
+- **Desktop**: Electron
+- **Frontend**: Vite, React 19, TypeScript, Tailwind CSS
 - **Visualization**: @xyflow/react (React Flow)
 - **Data Fetching**: TanStack Query
+- **State**: Zustand
 - **Icons**: Lucide React
-- **Backend**: Gas Town (Go), Beads (Go)
 
 ## License
 

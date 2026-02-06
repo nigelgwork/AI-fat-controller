@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from 'electron';
+import { app, BrowserWindow, ipcMain, session, Tray, Menu, nativeImage } from 'electron';
 import path from 'path';
 import { getExecutor, cancelAllExecutions } from './services/executor';
 import { settings, initSettings } from './services/settings';
@@ -53,7 +53,7 @@ function createWindow() {
 
   // Load the app
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL('http://localhost:3001');
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -202,6 +202,20 @@ if (!gotTheLock) {
   app.whenReady().then(async () => {
     // Initialize settings
     initSettings();
+
+    // Enforce CSP in production
+    if (!isDev) {
+      session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+        callback({
+          responseHeaders: {
+            ...details.responseHeaders,
+            'Content-Security-Policy': [
+              "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:"
+            ],
+          },
+        });
+      });
+    }
 
     // Initialize Controller store
     initControllerStore();

@@ -6,8 +6,8 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "dev:electron": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
-    "build": "tsc && vite build && electron-builder",
+    "dev:electron": "tsc -p tsconfig.electron.json && concurrently -n vite,tsc,electron \"vite\" \"tsc -p tsconfig.electron.json --watch\" \"wait-on http://localhost:3001 && electron .\"",
+    "build": "tsc --noEmit && tsc -p tsconfig.electron.json && vite build && electron-builder",
     "build:frontend": "vite build",
     "build:electron": "tsc -p tsconfig.electron.json",
     "build:go": "bash scripts/build-go-tools.sh",
