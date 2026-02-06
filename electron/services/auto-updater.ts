@@ -50,16 +50,17 @@ export function initAutoUpdater(window: BrowserWindow): void {
   });
 
   autoUpdater.on('update-available', (info: UpdateInfo) => {
-    log.info(`[AutoUpdater] Update available: ${info.version}`);
+    const version = typeof info.version === 'string' ? info.version : String(info.version);
+    log.info(`[AutoUpdater] Update available: ${version}`);
     updateStatus = {
       ...updateStatus,
       checking: false,
       available: true,
-      version: info.version,
+      version,
       releaseNotes: typeof info.releaseNotes === 'string' ? info.releaseNotes : null,
     };
     notifyRenderer('update:available', {
-      version: info.version,
+      version,
       releaseNotes: updateStatus.releaseNotes,
     });
   });
@@ -87,15 +88,16 @@ export function initAutoUpdater(window: BrowserWindow): void {
   });
 
   autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
-    log.info(`[AutoUpdater] Update downloaded: ${info.version}`);
+    const version = typeof info.version === 'string' ? info.version : String(info.version);
+    log.info(`[AutoUpdater] Update downloaded: ${version}`);
     updateStatus = {
       ...updateStatus,
       downloading: false,
       downloaded: true,
       progress: 100,
-      version: info.version,
+      version,
     };
-    notifyRenderer('update:downloaded', { version: info.version });
+    notifyRenderer('update:downloaded', { version });
   });
 
   autoUpdater.on('error', (error: Error) => {

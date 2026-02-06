@@ -33,7 +33,8 @@ export default function UpdateBanner() {
         setStatus(s => ({ ...s, checking: true }));
       }),
       window.electronAPI?.onUpdateAvailable?.((data) => {
-        setStatus(s => ({ ...s, checking: false, available: true, version: data.version }));
+        const version = typeof data.version === 'string' ? data.version : String(data.version);
+        setStatus(s => ({ ...s, checking: false, available: true, version }));
         setDismissed(false);
       }),
       window.electronAPI?.onUpdateNotAvailable?.(() => {
@@ -43,7 +44,8 @@ export default function UpdateBanner() {
         setStatus(s => ({ ...s, downloading: true, progress: data.percent }));
       }),
       window.electronAPI?.onUpdateDownloaded?.((data) => {
-        setStatus(s => ({ ...s, downloading: false, downloaded: true, version: data.version, progress: 100 }));
+        const version = typeof data.version === 'string' ? data.version : String(data.version);
+        setStatus(s => ({ ...s, downloading: false, downloaded: true, version, progress: 100 }));
         setDismissed(false);
       }),
     ];
