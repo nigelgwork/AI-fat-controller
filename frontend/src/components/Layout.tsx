@@ -1,82 +1,31 @@
-import { Outlet, NavLink } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { api } from '@/api';
-import {
-  LayoutDashboard,
-  Monitor,
-  Bot,
-  CheckSquare,
-  Settings,
-  FolderGit,
-  Crown,
-  Activity,
-  Plug,
-} from 'lucide-react';
-import ThemeToggle from './ThemeToggle';
-
-const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/controller', icon: Crown, label: 'Phat Controller' },
-  { to: '/projects', icon: FolderGit, label: 'Projects' },
-  { to: '/projects/tasks', icon: CheckSquare, label: 'Tasks' },
-  { to: '/projects/sessions', icon: Monitor, label: 'Sessions' },
-  { to: '/projects/history', icon: Activity, label: 'History' },
-  { to: '/resources/agents', icon: Bot, label: 'Agents' },
-  { to: '/resources/mcp', icon: Plug, label: 'MCP' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
-];
+import { Outlet } from 'react-router-dom';
+import { useState, useCallback, useEffect } from 'react';
+import TopBar from './TopBar';
+import Sidebar from './Sidebar';
 
 export default function Layout() {
-  const [version, setVersion] = useState<string>('');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  useEffect(() => {
-    api.getVersion().then(setVersion);
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => !prev);
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toggleSidebar]);
+
   return (
-    <div className="flex h-screen bg-slate-900">
-      {/* Sidebar */}
-      <aside className="w-16 bg-slate-800 border-r border-slate-700 flex flex-col items-center py-4">
-        <div className="mb-8">
-          <div className="w-10 h-10 rounded-lg bg-cyan-500 flex items-center justify-center text-white font-bold">
-            AI
-          </div>
-        </div>
-        <nav className="flex flex-col gap-2">
-          {navItems.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                `w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
-                  isActive
-                    ? 'bg-cyan-500/20 text-cyan-400'
-                    : 'text-slate-400 hover:bg-slate-700 hover:text-white'
-                }`
-              }
-              title={label}
-            >
-              <Icon size={20} />
-            </NavLink>
-          ))}
-        </nav>
-      </aside>
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="h-14 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-4">
-          <h1 className="text-lg font-semibold text-white">Phat Controller</h1>
-          <div className="flex items-center gap-4">
-            <ThemeToggle compact />
-            {version && (
-              <span className="text-xs text-slate-500 font-mono">v{version}</span>
-            )}
-          </div>
-        </header>
-
-        {/* Page content */}
+    <div className="h-screen flex flex-col bg-slate-900 text-white">
+      <TopBar />
+      <div className="flex-1 flex overflow-hidden">
+        <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
         <main className="flex-1 overflow-auto p-6">
           <Outlet />
         </main>

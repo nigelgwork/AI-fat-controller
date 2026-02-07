@@ -26,11 +26,11 @@ describe('Layout Component', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the application header', async () => {
+  it('renders the application header with title', async () => {
     render(<Layout />, { wrapper: createWrapper() });
 
     await waitFor(() => {
-      expect(screen.getByText('Phat Controller')).toBeInTheDocument();
+      expect(screen.getByText('AI Phat Controller')).toBeInTheDocument();
     });
   });
 
@@ -56,13 +56,13 @@ describe('Layout Component', () => {
     render(<Layout />, { wrapper: createWrapper() });
 
     await waitFor(() => {
-      expect(screen.getByTitle('Dashboard')).toBeInTheDocument();
-      expect(screen.getByTitle('Phat Controller')).toBeInTheDocument();
-      expect(screen.getByTitle('Projects')).toBeInTheDocument();
-      expect(screen.getByTitle('Sessions')).toBeInTheDocument();
-      expect(screen.getByTitle('Agents')).toBeInTheDocument();
-      expect(screen.getByTitle('Tasks')).toBeInTheDocument();
-      expect(screen.getByTitle('Settings')).toBeInTheDocument();
+      expect(screen.getByText('Overview')).toBeInTheDocument();
+      expect(screen.getAllByText('Phat Controller').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText('Projects')).toBeInTheDocument();
+      expect(screen.getByText('Sessions')).toBeInTheDocument();
+      expect(screen.getByText('Agents')).toBeInTheDocument();
+      expect(screen.getByText('Tasks')).toBeInTheDocument();
+      expect(screen.getAllByText('Settings').length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -70,15 +70,19 @@ describe('Layout Component', () => {
     render(<Layout />, { wrapper: createWrapper() });
 
     await waitFor(() => {
-      const dashboardLink = screen.getByTitle('Dashboard');
+      const overviewLink = screen.getByTitle('Overview');
       const controllerLink = screen.getByTitle('Phat Controller');
       const projectsLink = screen.getByTitle('Projects');
-      const settingsLink = screen.getByTitle('Settings');
+      const settingsLinks = screen.getAllByTitle('Settings');
 
-      expect(dashboardLink).toHaveAttribute('href', '/');
+      expect(overviewLink).toHaveAttribute('href', '/');
       expect(controllerLink).toHaveAttribute('href', '/controller');
       expect(projectsLink).toHaveAttribute('href', '/projects');
-      expect(settingsLink).toHaveAttribute('href', '/settings');
+      // Settings appears in both sidebar and top bar
+      expect(settingsLinks.length).toBeGreaterThanOrEqual(2);
+      settingsLinks.forEach((link) => {
+        expect(link).toHaveAttribute('href', '/settings');
+      });
     });
   });
 
@@ -106,6 +110,17 @@ describe('Layout Component', () => {
     await waitFor(() => {
       const header = document.querySelector('header');
       expect(header).toBeInTheDocument();
+    });
+  });
+
+  it('renders section headings in sidebar', async () => {
+    render(<Layout />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('DASHBOARD')).toBeInTheDocument();
+      expect(screen.getByText('PROJECTS')).toBeInTheDocument();
+      expect(screen.getByText('RESOURCES')).toBeInTheDocument();
+      expect(screen.getByText('CONTROLLER')).toBeInTheDocument();
     });
   });
 });
