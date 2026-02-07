@@ -1,354 +1,72 @@
 # AI Phat Controller - Development Roadmap
 
-This document outlines a phased approach to address all identified issues and complete planned features.
-
-> **Note**: The project has moved from Electron desktop app to plain Node.js server as the primary run mode (v1.4.0+). Phases 0-2 and 4 are substantially complete. Docker remains supported as an alternative deployment.
+> **Current state**: v1.5.0 — Restructured from Electron app to plain Node.js server with section-based navigation, diagnostics bar, terminal management, and dual-environment (Windows/WSL) support.
 
 ---
 
-## Phase 0: Critical Stability (Estimated: 2-3 days)
+## Completed
 
-**Goal**: Fix issues that could cause crashes, security vulnerabilities, or data loss.
+### Stability & Code Quality (Phases 0-1)
+- [x] Process lifecycle management, memory leak fixes
+- [x] Structured logging, error handling, custom error classes
+- [x] Runtime validation with Zod schemas
+- [x] Executor refactor (split into types/utils/impl)
 
-### 0.1 Electron Upgrade
-- [x] Update Electron 33.4.11 → 40.1.0
-- [x] Update electron-builder 25.1.8 → 26.4.0
-- [x] Keep electron-store at 8.2.0 (v10+ has breaking API changes)
-- [x] Test auto-updater still works with new versions
-- [x] Verify Windows + WSL execution modes work
+### Core Features (Phase 2)
+- [x] Token limit enforcement with hourly/daily resets
+- [x] Conversation context management
+- [x] Approval workflow with UI
+- [x] Streaming responses with real-time UI
 
-### 0.2 Memory Leak Fixes
-- [x] Add cleanup for tray menu interval (`main.ts:172`)
-- [x] Add cleanup for auto-updater check interval (`auto-updater.ts`)
-- [x] Add cleanup for ntfy polling interval (`ntfy.ts`)
-- [x] Add `app.on('before-quit')` handler to clean all intervals
-- [x] Add periodic cleanup of `runningProcesses` Map in executor
-
-### 0.3 Crash Prevention
-- [x] Add null-safety wrapper for BrowserWindow broadcasts
-  - Created helper: `safeBroadcast(channel, data)` in `utils/safe-ipc.ts`
-  - Replaced all `BrowserWindow.getAllWindows().forEach()` calls
-- [x] Add global unhandled rejection handler in main process
-- [x] Add error boundaries in React frontend
-
-### 0.4 Process Lifecycle
-- [x] Clean up running processes on app exit
-- [x] Clean up old executor when switching modes
-- [x] Fix race condition in idle timeout vs natural process exit
-
-**Deliverables**:
-- App doesn't leak memory over extended use
-- No crashes from destroyed windows
-- Clean shutdown with no orphaned processes
+### Restructuring (v1.5.0)
+- [x] Remove Electron, Gas Town, Clawdbot, and dead code (~80+ files)
+- [x] Section-based sidebar navigation (Dashboard, Projects, Resources, Terminals, Controller)
+- [x] Top bar with version, notifications bell, theme toggle, settings
+- [x] Diagnostics bar (CPU, RAM, app memory, uptime, weekly token usage)
+- [x] Windows/WSL environment grouping in Sessions and Agents pages
+- [x] Terminal session management (launch, view output, send input)
+- [x] Notification dropdown from top bar
 
 ---
 
-## Phase 1: Code Quality & Structure (Estimated: 3-4 days)
+## Next Steps
 
-**Goal**: Reduce technical debt and improve maintainability.
-
-### 1.1 Executor Refactor
-- [x] Split `executor.ts` into:
-  - `executor/types.ts` - Interfaces and types
-  - `executor/utils.ts` - Shared utilities
-  - `executor-impl.ts` - Implementation
-  - `executor.ts` - Re-export layer for backward compatibility
-- [x] Extract duplicate JSON parsing into shared utility
-- [ ] Add proper TypeScript types (remove remaining `any` usages)
-
-### 1.2 Logging Infrastructure
-- [x] Add structured logging library (`utils/logger.ts`)
-- [ ] Replace remaining `console.log` calls with proper logger
-- [x] Add log levels (debug, info, warn, error)
-- [x] Add log rotation for production
-- [ ] Add log file location in settings
-
-### 1.3 Error Handling
-- [x] Create custom error classes (`utils/errors.ts`)
-- [x] Add user-friendly error messages
-- [ ] Add error reporting/tracking infrastructure
-- [ ] Improve error recovery in file operations
-
-### 1.4 Type Safety
-- [x] Add runtime validation for settings values
-- [x] Add Zod schemas for external data (`utils/schemas.ts`)
-- [ ] Fix unsafe type casts throughout codebase
-
-**Deliverables**:
-- Cleaner, more maintainable code structure
-- Consistent logging across all services
-- Better error messages for users
-- Stronger type safety
-
----
-
-## Phase 2: Core Feature Completion (Estimated: 5-7 days)
-
-**Goal**: Complete the partially-implemented features.
-
-### 2.1 Token Limit Enforcement
-- [x] Implement actual blocking when limits reached (wind-down mode)
-- [x] Add hourly reset logic with proper time tracking
-- [x] Add daily reset logic
-- [x] Add pause/resume based on limit status
-- [x] Add UI indicator showing time until limit reset
-- [ ] Store historical token usage for analytics
-
-### 2.2 Conversation Context
-- [x] Load conversation history into Claude prompts
-- [x] Implement token counting for context window management
-- [x] Add conversation summarization when approaching limit
-- [x] Add context pruning strategy (oldest first)
-- [x] Persist conversation metadata (tokens used, model, cost)
-
-### 2.3 Approval Workflow
-- [x] Complete approval request processing backend
-- [x] Wire up approval UI to backend actions
-- [x] Add approval history/audit log
-- [x] Add auto-approval rules configuration
-- [x] Add timeout handling for pending approvals
-- [ ] Add notification for pending approvals (system tray)
-
-### 2.4 Streaming Responses
-- [x] Connect JSON stream parsing to real-time UI updates
-- [x] Show tool calls as they happen in UI
-- [x] Add streaming text display for Claude responses
-- [ ] Add cancel button during streaming
-- [x] Add progress indicator for long operations
-
-**Deliverables**:
-- Working token limit system that actually prevents overuse
-- Conversation history maintained across sessions
-- Functional approval workflow with UI
-- Real-time streaming feedback in UI
-
----
-
-## Phase 3: Testing & Reliability (Estimated: 4-5 days)
-
-**Goal**: Add comprehensive test coverage and improve reliability.
-
-### 3.1 Unit Tests
-- [ ] Set up Vitest for Electron main process tests
-- [ ] Add tests for executor services
-  - Windows path conversion
-  - WSL path conversion
-  - JSON response parsing
-  - Process lifecycle management
-- [ ] Add tests for controller service
-  - Token usage calculation
-  - Limit checking
-  - State transitions
-- [ ] Add tests for conversation service
-  - Session CRUD operations
-  - Entry persistence
-  - Index synchronization
-
-### 3.2 Integration Tests
-- [ ] Add tests for IPC communication
-- [ ] Add tests for settings persistence
-- [ ] Add tests for file operations
-- [ ] Mock Claude Code CLI responses for testing
-
-### 3.3 Frontend Tests
-- [ ] Set up React Testing Library
-- [ ] Add tests for critical UI components
-- [ ] Add tests for state management
+### Testing & Reliability
+- [ ] Add server-side tests for API routes
+- [ ] Add tests for terminal-manager service
 - [ ] Add E2E tests with Playwright
+- [ ] Improve frontend test coverage (currently 41 tests)
 
-### 3.4 Reliability Improvements
-- [ ] Add transaction safety for conversation files
-- [ ] Add file locking for concurrent access
-- [ ] Add backup/recovery for corrupted files
-- [ ] Add health checks for external dependencies
+### Security
+- [ ] Audit `--dangerously-skip-permissions` usage in terminal launcher
+- [ ] Add command validation for terminal manager
+- [ ] Review dependency security
 
-**Deliverables**:
-- 70%+ test coverage on critical paths
-- CI pipeline running tests on PR
-- Confidence in refactoring
+### UX Polish
+- [ ] Add keyboard shortcuts documentation (Ctrl+B sidebar, Ctrl+K command palette)
+- [ ] Improve mobile/responsive layout
+- [ ] Add loading skeletons for all data-fetching pages
+- [ ] Add command palette integration for terminal launching
 
----
-
-## Phase 4: Security Hardening (Estimated: 2-3 days)
-
-**Goal**: Address all identified security concerns.
-
-### 4.1 Input Validation
-- [x] Validate execution mode before use
-- [x] Validate command arguments with Zod schemas
-- [x] Validate Claude API responses before processing (`utils/schemas.ts`)
-- [x] Add input validation on critical IPC handlers (`utils/ipc-validation.ts`)
-
-### 4.2 Process Security
-- [ ] Evaluate alternatives to `shell: true` on Windows
-- [ ] Add command allowlist for executor
-- [ ] Sandbox spawned processes where possible
-- [ ] Audit `--dangerously-skip-permissions` usage
-
-### 4.3 Data Security
-- [x] Audit what gets logged (truncate stderr to 500 chars)
-- [x] Ensure no credentials in logs or persisted data
-- [ ] Add secure deletion for sensitive temp files
-- [ ] Review electron-store encryption settings
-
-### 4.4 Dependency Security
-- [x] Run `pnpm audit` and fix vulnerabilities (tar override >=7.5.7)
-- [ ] Set up Dependabot or similar
-- [ ] Review dependency licenses
-- [ ] Pin dependency versions
-
-**Deliverables**:
-- No critical security vulnerabilities
-- Automated security scanning
-- Documented security model
-
----
-
-## Phase 5: Dashboard & UX (Estimated: 5-7 days)
-
-**Goal**: Complete the dashboard features from the original roadmap.
-
-### 5.1 Real-Time Updates
-- [ ] Enable polling for active sessions
-- [ ] Add WebSocket option for lower latency
-- [ ] Add connection status indicator
-- [ ] Handle reconnection gracefully
-
-### 5.2 Agent Visualization
-- [ ] Improve agent state display
-- [ ] Add agent activity timeline
-- [ ] Add agent resource usage (tokens, time)
-- [ ] Add agent communication visualization
-
-### 5.3 Convoy Tracking
-- [ ] Complete convoy progress UI
-- [ ] Add convoy dependency visualization
-- [ ] Add convoy completion estimates
-- [ ] Add convoy history
-
-### 5.4 Analytics Dashboard
-- [ ] Token usage over time charts
-- [ ] Cost tracking and projections
-- [ ] Task completion metrics
-- [ ] Performance benchmarks
-
-### 5.5 UX Improvements
-- [ ] Add quick action buttons for common workflows
-- [ ] Improve error message display
-- [ ] Add keyboard shortcuts
-- [ ] Add dark/light theme toggle
-- [ ] Add onboarding flow for new users
-
-**Deliverables**:
-- Polished, responsive dashboard
-- Real-time visibility into system state
-- Actionable analytics
-
----
-
-## Phase 6: Advanced Features (Estimated: ongoing)
-
-**Goal**: Add new capabilities beyond original scope.
-
-### 6.1 Multi-Agent Support
-- [ ] Parallel agent execution
-- [ ] Agent coordination/communication
-- [ ] Agent specialization (different models/prompts)
-- [ ] Agent pool management
-
-### 6.2 Project Intelligence
-- [ ] Automatic project analysis on add
-- [ ] Code quality scoring
-- [ ] Dependency vulnerability alerts
-- [ ] Suggested tasks based on codebase
-
-### 6.3 Workflow Automation
-- [ ] Saved workflow templates
+### Advanced Features
+- [ ] WebSocket streaming for terminal output (replace polling)
+- [ ] Multi-agent parallel execution
 - [ ] Scheduled task execution
-- [ ] Git hook integration
-- [ ] CI/CD integration
-
-### 6.4 Collaboration
-- [ ] Multi-user support
-- [ ] Shared conversation history
-- [ ] Team activity feed
-- [ ] Role-based access control
-
-**Deliverables**:
-- Advanced orchestration capabilities
-- Smarter automation
-- Team collaboration features
+- [ ] Teams/Google Chat webhook integration for notifications
+- [ ] Skills browser page
+- [ ] MCP server dual-environment config (copy between Windows/WSL)
 
 ---
 
-## Dependency Graph
+## Version History
 
-```
-Phase 0 (Critical)
-    │
-    ├──► Phase 1 (Code Quality)
-    │        │
-    │        └──► Phase 3 (Testing)
-    │                 │
-    │                 └──► Phase 4 (Security)
-    │
-    └──► Phase 2 (Features)
-             │
-             └──► Phase 5 (Dashboard)
-                      │
-                      └──► Phase 6 (Advanced)
-```
-
-**Notes**:
-- Phase 0 must complete first (stability baseline)
-- Phases 1 and 2 can run in parallel
-- Phase 3 depends on Phase 1 (need clean code to test)
-- Phase 4 can start after Phase 1
-- Phase 5 depends on Phase 2 (features to display)
-- Phase 6 is ongoing/incremental
+| Version | Description |
+|---------|-------------|
+| v0.7.0 | Stability release (process management, memory fixes) |
+| v0.8.0 | Feature complete (token limits, approvals, streaming) |
+| v1.4.0 | Migrated to plain Node.js server, Docker support |
+| v1.5.0 | Restructured: new layout, terminal management, removed dead code |
 
 ---
 
-## Time Estimates Summary
-
-| Phase | Duration | Dependencies |
-|-------|----------|--------------|
-| Phase 0: Critical Stability | 2-3 days | None |
-| Phase 1: Code Quality | 3-4 days | Phase 0 |
-| Phase 2: Core Features | 5-7 days | Phase 0 |
-| Phase 3: Testing | 4-5 days | Phase 1 |
-| Phase 4: Security | 2-3 days | Phase 1 |
-| Phase 5: Dashboard | 5-7 days | Phase 2 |
-| Phase 6: Advanced | Ongoing | Phase 5 |
-
-**Total to production-ready (Phases 0-5)**: ~21-29 days
-
----
-
-## How to Track Progress
-
-Each task can be tracked using the checkbox format above. When starting work:
-
-1. Move task to "In Progress" section
-2. Create feature branch: `phase-X/task-name`
-3. Complete implementation
-4. Add tests (Phase 3+)
-5. Update this document
-6. Create PR for review
-
----
-
-## Version Milestones
-
-| Version | Phases | Description |
-|---------|--------|-------------|
-| v0.7.0 | Phase 0 | Stability release |
-| v0.8.0 | Phase 1+2 | Feature complete |
-| v0.9.0 | Phase 3+4 | Production ready |
-| v1.0.0 | Phase 5 | Full dashboard |
-| v1.4.0 | Server mode | Plain Node.js primary, Docker optional |
-| v2.x | Phase 6 | Advanced features, npm package distribution |
-
----
-
-*Last updated: 2026-02-06 (Progress: Phases 0, 1, 2, 4 substantially complete. v1.4.0: migrated to plain Node.js server mode.)*
+*Last updated: 2026-02-07*

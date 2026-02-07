@@ -4,12 +4,12 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ## Project Overview
 
-AI Phat Controller is a local dashboard + backend for multi-agent orchestration with Claude Code. It consists of:
+AI Phat Controller is a local dashboard + backend for managing Claude Code sessions, tasks, agents, and multi-agent orchestration. It consists of:
 
-- **Frontend**: Vite + React 19 SPA for monitoring agents, tasks, sessions, and settings
+- **Frontend**: Vite + React 19 SPA with section-based sidebar navigation
 - **Backend**: Express.js server with SQLite database, REST API, and WebSocket support
 - **Claude Code Integration**: Spawns Claude Code CLI as child processes for AI operations
-- **Gas Town Integration**: Optional support for Gas Town (gt) and Beads (bd) CLIs
+- **Terminal Management**: Launch and manage Claude Code terminal sessions from the UI
 
 ## Quick Start
 
@@ -26,16 +26,14 @@ pnpm test:run         # Run tests
 Frontend (Vite + React)          Backend (Express.js)
 :5173 (dev) / :3001 (prod)      :3001
 
-  React 19 + TypeScript            REST API (21 routes)
+  React 19 + TypeScript            REST API (16 routes)
   TanStack Query                   WebSocket (live updates)
   Zustand                          SQLite (better-sqlite3)
   @xyflow/react                    Claude Code CLI (spawned)
-  Tailwind CSS 3                   Gas Town CLIs (optional)
+  Tailwind CSS 3                   Terminal Manager
 ```
 
 In development, Vite runs on :5173 with HMR and proxies API calls to Express on :3001. In production, Express serves the built frontend from `dist/`.
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed diagrams.
 
 ## Development Commands
 
@@ -57,7 +55,6 @@ pnpm typecheck        # TypeScript type check
 |----------|---------|-------------|
 | `PORT` | `3001` | Server port |
 | `DATA_DIR` | `./data` | SQLite database directory |
-| `GASTOWN_PATH` | `~/gt` | Gas Town workspace path |
 | `EXECUTION_MODE` | `linux` | Execution mode |
 
 ---
@@ -74,15 +71,53 @@ pnpm typecheck        # TypeScript type check
 4. **Check running processes first** - Run `pgrep -a node` before spawning new processes
 5. **Use timeouts** - Always use timeout for any exec calls
 
-### Safe Testing Workflow:
+---
 
-```bash
-pgrep -a node                  # Check what's running
-pkill -f "next dev" || true    # Kill any existing dev servers
-pnpm dev                       # Run ONE command in foreground
+## Frontend Routes
+
+```
+/                     → Dashboard (overview stats, running sessions)
+/controller           → Phat Controller (AI orchestration chat)
+/projects             → Project management (add, edit, remove)
+/projects/new         → Create new project
+/projects/tasks       → Task management
+/projects/sessions    → Active Claude Code sessions (Windows + WSL grouped)
+/projects/history     → Activity log
+/resources/agents     → Agent definitions (Windows + WSL, copy between)
+/resources/mcp        → MCP server configuration
+/terminals            → Terminal session management (launch, view output)
+/settings             → Configuration (mode, ntfy, usage limits, MCP, debug)
 ```
 
----
+## Layout Structure
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ [AI Phat Controller]  v1.x       [?] [🔔] [◑] [⚙]        │  TopBar
+├────────────┬────────────────────────────────────────────────┤
+│ DASHBOARD  │                                                │
+│  Overview  │  [Page content - Outlet]                       │
+│ PROJECTS   │                                                │
+│  Projects  │                                                │
+│  Tasks     │                                                │
+│  Sessions  │                                                │
+│  History   │                                                │
+│ RESOURCES  │                                                │
+│  Agents    │                                                │
+│  MCP       │                                                │
+│ TERMINALS  │                                                │
+│  Terminals │                                                │
+│ CONTROLLER │                                                │
+│  Phat Ctrl │                                                │
+├────────────┼────────────────────────────────────────────────┤
+│ Settings   │                                                │
+│ Collapse ◂ │                                                │
+├────────────┴────────────────────────────────────────────────┤
+│ CPU: 12% | RAM: 45% | App: 180MB | 2h 15m  | Weekly: 145k │  DiagnosticsBar
+└─────────────────────────────────────────────────────────────┘
+```
+
+Sidebar collapses via Ctrl/Cmd+B keyboard shortcut.
 
 ## Project Structure
 
@@ -90,47 +125,55 @@ pnpm dev                       # Run ONE command in foreground
 ai-controller/
 ├── frontend/                   # Vite + React SPA
 │   ├── src/
-│   │   ├── pages/              # Page components (16 pages)
-│   │   │   ├── Dashboard.tsx   # Overview stats
+│   │   ├── pages/              # Page components (10 pages)
+│   │   │   ├── Dashboard.tsx   # Overview stats + running sessions
 │   │   │   ├── Controller.tsx  # AI Controller chat
 │   │   │   ├── Tasks.tsx       # Task management
-│   │   │   ├── Sessions.tsx    # Claude Code sessions
+│   │   │   ├── Sessions.tsx    # Claude Code sessions (WSL/Win grouped)
 │   │   │   ├── Projects.tsx    # Project management
-│   │   │   ├── Settings.tsx    # Configuration + debug
-│   │   │   ├── Clawdbot.tsx    # AI assistant
-│   │   │   ├── Agents.tsx      # Gas Town agents
-│   │   │   ├── Beads.tsx       # Gas Town work items
-│   │   │   ├── Convoys.tsx     # Grouped work
+│   │   │   ├── NewProject.tsx  # Create new project
+│   │   │   ├── Terminals.tsx   # Terminal session management
+│   │   │   ├── Agents.tsx      # Agent definitions
+│   │   │   ├── ActivityLog.tsx # Activity history
+│   │   │   └── Settings.tsx    # Configuration + debug
+│   │   ├── components/         # Shared UI (15 components)
+│   │   │   ├── Layout.tsx      # App shell (TopBar + Sidebar + main)
+│   │   │   ├── TopBar.tsx      # Header with version, notifications, settings
+│   │   │   ├── Sidebar.tsx     # Collapsible section-based navigation
+│   │   │   ├── DiagnosticsBar.tsx # System metrics footer
+│   │   │   ├── MCPServerConfig.tsx # MCP server panel
 │   │   │   └── ...
-│   │   ├── components/         # Shared UI (26+ components)
 │   │   ├── api/                # API client (server-api.ts)
 │   │   ├── hooks/              # Custom React hooks
-│   │   └── types/              # TypeScript definitions
+│   │   └── __tests__/          # Vitest test files
 │   └── index.html
 │
 ├── server/                     # Express.js backend
 │   ├── index.ts                # Server entry point
-│   ├── routes/                 # API routes (21 modules)
-│   │   ├── tasks.ts
-│   │   ├── claude.ts
-│   │   ├── settings.ts
-│   │   ├── projects.ts
-│   │   ├── agents.ts
-│   │   ├── controller.ts
-│   │   ├── conversations.ts
+│   ├── routes/                 # API routes (16 modules)
+│   │   ├── tasks.ts            # Task CRUD
+│   │   ├── claude.ts           # Execute Claude Code
+│   │   ├── settings.ts         # App settings
+│   │   ├── projects.ts         # Project management
+│   │   ├── agents.ts           # Agent definitions
+│   │   ├── terminals.ts        # Terminal session management
+│   │   ├── controller.ts       # AI Controller operations
+│   │   ├── conversations.ts    # Chat history
 │   │   ├── execution-sessions.ts
 │   │   ├── claude-sessions.ts
-│   │   ├── clawdbot.ts
 │   │   ├── token-history.ts
 │   │   ├── mode.ts
-│   │   ├── system.ts
-│   │   └── ...
+│   │   ├── system.ts           # Health, version, debug, metrics
+│   │   ├── ntfy.ts             # Notifications
+│   │   ├── mcp.ts              # MCP server config
+│   │   └── activity.ts         # Activity log
 │   ├── db/
 │   │   ├── database.ts         # SQLite init + migrations
-│   │   ├── repositories/       # Data access layer (13 repos)
+│   │   ├── repositories/       # Data access layer
 │   │   └── migrations/         # SQL migration files
 │   ├── services/               # Business logic
 │   │   ├── executor/           # Claude Code execution
+│   │   ├── terminal-manager.ts # Terminal session spawning
 │   │   ├── mode-detection.ts   # Linux/Docker/WSL detection
 │   │   ├── settings.ts         # Settings service
 │   │   └── ...
@@ -140,8 +183,6 @@ ai-controller/
 │
 ├── shared/                     # Types shared between frontend/server
 │   └── types/index.ts
-│
-├── electron/                   # Electron desktop wrapper (legacy)
 │
 ├── bin/cli.js                  # CLI entry point (npx)
 ├── Dockerfile                  # Docker build
@@ -154,8 +195,7 @@ ai-controller/
     ├── ARCHITECTURE.md          # Detailed architecture diagrams
     ├── SECURITY.md              # Security model
     ├── folder-structure.md      # Naming conventions
-    ├── clean-code.md            # Code quality guidelines
-    └── gastown-reference.md     # Gas Town ecosystem guide
+    └── clean-code.md            # Code quality guidelines
 ```
 
 ## Key Files
@@ -165,9 +205,11 @@ ai-controller/
 | `server/index.ts` | Express server entry, middleware, route registration |
 | `server/db/database.ts` | SQLite init, migrations runner |
 | `server/services/mode-detection.ts` | Detect Claude CLI, Docker, WSL |
+| `server/services/terminal-manager.ts` | Spawn and manage terminal sessions |
 | `server/services/settings.ts` | Settings service (SQLite-backed) |
 | `frontend/src/api/server-api.ts` | Frontend API client |
 | `frontend/src/App.tsx` | React Router setup |
+| `frontend/src/components/Layout.tsx` | App shell (TopBar + Sidebar + DiagnosticsBar) |
 | `shared/types/index.ts` | Shared TypeScript interfaces |
 | `bin/cli.js` | npm/npx CLI entry point |
 
@@ -184,11 +226,14 @@ All routes mount under `/api/` in `server/index.ts`:
 | `/api/conversations` | `routes/conversations.ts` | Chat history |
 | `/api/settings` | `routes/settings.ts` | App settings |
 | `/api/mode` | `routes/mode.ts` | Mode detection |
-| `/api/system` | `routes/system.ts` | Health, version, debug |
+| `/api/system` | `routes/system.ts` | Health, version, debug, metrics |
 | `/api/controller` | `routes/controller.ts` | AI Controller ops |
-| `/api/clawdbot` | `routes/clawdbot.ts` | Clawdbot agent |
+| `/api/terminals` | `routes/terminals.ts` | Terminal session management |
 | `/api/token-history` | `routes/token-history.ts` | Token analytics |
 | `/api/activity` | `routes/activity.ts` | Activity log |
+| `/api/agents` | `routes/agents.ts` | Agent definitions |
+| `/api/claude-sessions` | `routes/claude-sessions.ts` | Claude session history |
+| `/api/ntfy` | `routes/ntfy.ts` | Notifications |
 | `/api/mcp` | `routes/mcp.ts` | MCP server config |
 
 ## Tech Stack
