@@ -14,8 +14,7 @@ import {
   AlertTriangle,
   ChevronDown,
 } from 'lucide-react';
-import type { Task, TaskStatus, TaskPriority, CreateTaskInput, UpdateTaskInput } from '../types/gastown';
-import type { Project } from '../types/electron.d';
+import type { Task, TaskStatus, TaskPriority, CreateTaskInput, UpdateTaskInput, Project } from '@shared/types';
 import ActiveSessions from '../components/ActiveSessions';
 
 export default function Tasks() {
@@ -93,7 +92,7 @@ export default function Tasks() {
     },
   });
 
-  const filteredTasks = tasks?.filter((task) => {
+  const filteredTasks = tasks?.filter((task: Task) => {
     if (statusFilter !== 'all' && task.status !== statusFilter) return false;
     if (projectFilter !== 'all' && task.projectId !== projectFilter) return false;
     return true;
@@ -168,7 +167,7 @@ export default function Tasks() {
             className="appearance-none bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 pr-8 text-white focus:outline-none focus:border-cyan-500"
           >
             <option value="all">All Projects</option>
-            {projects?.map((project) => (
+            {projects?.map((project: Project) => (
               <option key={project.id} value={project.id}>
                 {project.name}
               </option>
@@ -203,7 +202,7 @@ export default function Tasks() {
         <EmptyState hasAnyTasks={!!tasks?.length} onAddTask={() => setIsAddingTask(true)} />
       ) : (
         <div className="space-y-3">
-          {filteredTasks.map((task) => (
+          {filteredTasks.map((task: Task) => (
             <div
               key={task.id}
               className="bg-slate-800 rounded-lg border border-slate-700 p-4 hover:border-slate-600 transition-colors"

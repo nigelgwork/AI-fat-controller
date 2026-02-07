@@ -56,7 +56,6 @@ describe('Layout Component', () => {
     render(<Layout />, { wrapper: createWrapper() });
 
     await waitFor(() => {
-      // Check for navigation link elements (they have title attributes)
       expect(screen.getByTitle('Dashboard')).toBeInTheDocument();
       expect(screen.getByTitle('Phat Controller')).toBeInTheDocument();
       expect(screen.getByTitle('Projects')).toBeInTheDocument();
@@ -87,7 +86,6 @@ describe('Layout Component', () => {
     render(<Layout />, { wrapper: createWrapper() });
 
     await waitFor(() => {
-      // The main element should exist
       const mainElement = document.querySelector('main');
       expect(mainElement).toBeInTheDocument();
     });
@@ -97,26 +95,14 @@ describe('Layout Component', () => {
     render(<Layout />, { wrapper: createWrapper() });
 
     await waitFor(() => {
-      // The aside element should exist
       const asideElement = document.querySelector('aside');
       expect(asideElement).toBeInTheDocument();
     });
   });
 
-  it('renders mode toggle component', async () => {
+  it('renders header with theme toggle', async () => {
     render(<Layout />, { wrapper: createWrapper() });
 
-    // Mode toggle should be in the header
-    await waitFor(() => {
-      const header = document.querySelector('header');
-      expect(header).toBeInTheDocument();
-    });
-  });
-
-  it('renders update banner component', async () => {
-    render(<Layout />, { wrapper: createWrapper() });
-
-    // The update banner component should be rendered (even if not visible)
     await waitFor(() => {
       const header = document.querySelector('header');
       expect(header).toBeInTheDocument();

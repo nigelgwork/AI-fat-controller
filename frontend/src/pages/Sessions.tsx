@@ -5,7 +5,7 @@ import {
   Terminal, RefreshCw, Activity, FolderGit, Clock, Cpu, FileCode, Bot,
   History, Copy, Check, MessageSquare, RotateCcw
 } from 'lucide-react';
-import type { ClaudeSession, Project, ClaudeCodeSession } from '../types/electron';
+import type { ClaudeSession, Project, ClaudeCodeSession } from '@shared/types';
 import CollapsibleHelp from '../components/CollapsibleHelp';
 
 function formatStartTime(isoString: string): string {

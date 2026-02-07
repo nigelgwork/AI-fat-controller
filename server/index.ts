@@ -9,7 +9,6 @@ import { initWebSocket } from './websocket';
 import { errorHandler } from './middleware/error-handler';
 import { createLogger } from './utils/logger';
 import { getSetting, setSetting } from './services/settings';
-import { getGastownPath, ensureDir } from './utils/paths';
 import { detectModes } from './services/mode-detection';
 
 // Import route modules
@@ -23,17 +22,11 @@ import controllerRoutes from './routes/controller';
 import conversationsRoutes from './routes/conversations';
 import claudeSessionsRoutes from './routes/claude-sessions';
 import ntfyRoutes from './routes/ntfy';
-import briefsRoutes from './routes/briefs';
-import screenshotsRoutes from './routes/screenshots';
-import guiTestsRoutes from './routes/gui-tests';
 import mcpRoutes from './routes/mcp';
-import clawdbotRoutes from './routes/clawdbot';
 import tokenHistoryRoutes from './routes/token-history';
 import activityRoutes from './routes/activity';
 import executionSessionsRoutes from './routes/execution-sessions';
-import imagesRoutes from './routes/images';
 import systemRoutes from './routes/system';
-import beadsRoutes from './routes/beads';
 
 const log = createLogger('Server');
 const PORT = parseInt(process.env.PORT || '3001', 10);
@@ -45,18 +38,14 @@ async function main() {
 
   // Auto-configure on first run — detect environment and set defaults
   if (!getSetting('hasCompletedSetup')) {
-    const gastownPath = getGastownPath();
-    ensureDir(gastownPath);
-
     // Detect environment (WSL, Docker, native Linux)
     const modeStatus = await detectModes();
     const executionMode = modeStatus.wsl.detected ? 'wsl' : 'linux';
 
     setSetting('executionMode', executionMode);
     setSetting('defaultMode', 'auto');
-    setSetting('gastownPath', gastownPath);
     setSetting('hasCompletedSetup', true);
-    log.info(`Auto-configured: mode=${executionMode}, gastownPath=${gastownPath}`);
+    log.info(`Auto-configured: mode=${executionMode}`);
     if (modeStatus.wsl.detected) {
       log.info(`Detected ${modeStatus.wsl.version || 'WSL'}`);
     }
@@ -89,17 +78,11 @@ async function main() {
   app.use('/api/conversations', conversationsRoutes);
   app.use('/api/claude-sessions', claudeSessionsRoutes);
   app.use('/api/ntfy', ntfyRoutes);
-  app.use('/api/briefs', briefsRoutes);
-  app.use('/api/screenshots', screenshotsRoutes);
-  app.use('/api/gui-tests', guiTestsRoutes);
   app.use('/api/mcp', mcpRoutes);
-  app.use('/api/clawdbot', clawdbotRoutes);
   app.use('/api/token-history', tokenHistoryRoutes);
   app.use('/api/activity', activityRoutes);
   app.use('/api/sessions', executionSessionsRoutes);
-  app.use('/api/images', imagesRoutes);
   app.use('/api/system', systemRoutes);
-  app.use('/api/beads', beadsRoutes);
 
   // Serve frontend in production
   // In Docker: __dirname is /app/dist-server/server, frontend is at /app/dist

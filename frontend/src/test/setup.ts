@@ -1,19 +1,19 @@
 import '@testing-library/jest-dom';
-import { vi, beforeAll, afterAll, afterEach } from 'vitest';
+import { vi, afterAll, afterEach } from 'vitest';
 
-// Mock electronAPI for all tests
-const mockElectronAPI = {
+// Mock the API module
+const mockApi = {
   // Mode
-  getMode: vi.fn().mockResolvedValue('windows'),
+  getMode: vi.fn().mockResolvedValue('linux'),
   setMode: vi.fn().mockResolvedValue(undefined),
   detectModes: vi.fn().mockResolvedValue({
-    current: 'windows',
-    windows: { available: true },
+    current: 'linux',
+    windows: { available: false },
     wsl: { available: false },
   }),
   getModeStatus: vi.fn().mockResolvedValue({
-    current: 'windows',
-    windows: { available: true },
+    current: 'linux',
+    windows: { available: false },
     wsl: { available: false },
   }),
 
@@ -27,25 +27,18 @@ const mockElectronAPI = {
   // Settings
   getSetting: vi.fn().mockImplementation((key: string) => {
     const defaults: Record<string, unknown> = {
-      executionMode: 'windows',
+      executionMode: 'linux',
       theme: 'dark',
-      startMinimized: false,
-      minimizeToTray: true,
     };
     return Promise.resolve(defaults[key]);
   }),
   setSetting: vi.fn().mockResolvedValue(undefined),
   getAllSettings: vi.fn().mockResolvedValue({
-    executionMode: 'windows',
+    executionMode: 'linux',
     defaultMode: 'auto',
     windows: {},
     wsl: {},
-    gastownPath: '',
     theme: 'dark',
-    startMinimized: false,
-    minimizeToTray: true,
-    showModeToggle: true,
-    autoCheckUpdates: true,
     hasCompletedSetup: true,
   }),
 
@@ -62,7 +55,6 @@ const mockElectronAPI = {
     id: 'test-project',
     name: 'Test Project',
     path: '/test/project',
-    hasBeads: false,
     hasClaude: true,
   }),
   removeProject: vi.fn().mockResolvedValue(undefined),
@@ -134,6 +126,15 @@ const mockElectronAPI = {
   approveRequest: vi.fn().mockResolvedValue(undefined),
   rejectRequest: vi.fn().mockResolvedValue(undefined),
   getActionLogs: vi.fn().mockResolvedValue([]),
+  getUsageLimitConfig: vi.fn().mockResolvedValue({
+    maxTokensPerHour: 200000,
+    maxTokensPerDay: 1000000,
+    pauseThreshold: 0.8,
+    warningThreshold: 0.6,
+    autoResumeOnReset: true,
+  }),
+  updateUsageLimitConfig: vi.fn().mockResolvedValue(undefined),
+  getUsagePercentages: vi.fn().mockResolvedValue({ hourly: 0, daily: 0 }),
 
   // Conversations
   createConversationSession: vi.fn().mockImplementation((projectId, projectName) =>
@@ -189,6 +190,58 @@ const mockElectronAPI = {
   getTokenHistoryAverage: vi.fn().mockResolvedValue({ input: 0, output: 0 }),
   clearTokenHistory: vi.fn().mockResolvedValue({ success: true }),
 
+  // ntfy
+  getNtfyConfig: vi.fn().mockResolvedValue({
+    enabled: false,
+    serverUrl: '',
+    topic: '',
+    priority: 'default',
+    enableDesktopNotifications: false,
+    commandsEnabled: false,
+    autoStartOnTask: false,
+    statusReporter: {
+      enabled: false,
+      intervalMinutes: 30,
+      notifyOnTaskStart: false,
+      notifyOnTaskComplete: false,
+      notifyOnTaskFail: false,
+      notifyOnApprovalNeeded: false,
+      notifyOnTokenWarning: false,
+    },
+  }),
+  setNtfyConfig: vi.fn().mockResolvedValue(undefined),
+  testNtfyConnection: vi.fn().mockResolvedValue({ success: true }),
+
+  // System
+  getDebugInfo: vi.fn().mockResolvedValue({
+    isDocker: false,
+    nodeVersion: 'v20.0.0',
+    platform: 'linux',
+    claudePath: '/test/claude',
+    executionMode: 'linux',
+  }),
+  getClaudeSessions: vi.fn().mockResolvedValue([]),
+  getSystemStatus: vi.fn().mockResolvedValue({
+    projects: [],
+    sessions: [],
+    discovered: [],
+  }),
+  getUpdateStatus: vi.fn().mockResolvedValue({
+    checking: false,
+    available: false,
+    downloaded: false,
+    downloading: false,
+    progress: 0,
+    version: null,
+    releaseNotes: null,
+    error: null,
+  }),
+  downloadUpdate: vi.fn().mockResolvedValue(undefined),
+
+  // MCP
+  getMcpConfigs: vi.fn().mockResolvedValue([]),
+  getMcpDefaultConfigs: vi.fn().mockResolvedValue([]),
+
   // Event listeners - return cleanup functions
   onUpdateChecking: vi.fn().mockReturnValue(() => {}),
   onUpdateAvailable: vi.fn().mockReturnValue(() => {}),
@@ -203,39 +256,19 @@ const mockElectronAPI = {
   onProgressUpdated: vi.fn().mockReturnValue(() => {}),
   onUsageWarning: vi.fn().mockReturnValue(() => {}),
   onExecutorLog: vi.fn().mockReturnValue(() => {}),
-
-  // Additional mocks can be added as needed
-  getUpdateStatus: vi.fn().mockResolvedValue({
-    checking: false,
-    available: false,
-    downloaded: false,
-    downloading: false,
-    progress: 0,
-    version: null,
-    releaseNotes: null,
-    error: null,
-  }),
-  downloadUpdate: vi.fn().mockResolvedValue(undefined),
-  getDebugInfo: vi.fn().mockResolvedValue({
-    isDocker: false,
-    nodeVersion: 'v20.0.0',
-    platform: 'linux',
-    claudePath: '/test/claude',
-    gastownPath: '/test/gastown',
-    gastownExists: true,
-    executionMode: 'linux',
-  }),
-  getClaudeSessions: vi.fn().mockResolvedValue([]),
-  getSystemStatus: vi.fn().mockResolvedValue({
-    projects: [],
-    sessions: [],
-    discovered: [],
-  }),
+  onSessionUpdate: vi.fn().mockReturnValue(() => {}),
+  onSessionLog: vi.fn().mockReturnValue(() => {}),
+  onNtfyQuestionAsked: vi.fn().mockReturnValue(() => {}),
+  onNtfyQuestionAnswered: vi.fn().mockReturnValue(() => {}),
+  onCloneProgress: vi.fn().mockReturnValue(() => {}),
+  onSetupProgress: vi.fn().mockReturnValue(() => {}),
 };
 
-// Expose the mock globally BEFORE any module evaluation so that
-// api/index.ts resolves to electronAPI instead of serverApi (which makes real fetch calls).
-(window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
+// Mock the @/api module
+vi.mock('../api', () => ({
+  api: mockApi,
+  initApi: vi.fn(),
+}));
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -246,4 +279,4 @@ afterAll(() => {
 });
 
 // Export for use in individual tests
-export { mockElectronAPI };
+export { mockApi as mockElectronAPI };

@@ -1,5 +1,4 @@
-// Shared type definitions extracted from electron/preload.ts
-// Pure types file - no Electron imports
+// Shared type definitions between frontend and server
 
 export interface ModeStatus {
   current: 'windows' | 'wsl';
@@ -26,7 +25,6 @@ export interface Project {
   id: string;
   name: string;
   path: string;
-  hasBeads: boolean;
   hasClaude: boolean;
   lastModified?: string;
   gitRemote?: string;
@@ -153,8 +151,6 @@ export interface DebugInfo {
   nodeVersion: string;
   platform: string;
   claudePath: string;
-  gastownPath: string;
-  gastownExists: boolean;
   executionMode: 'linux';
 }
 
@@ -230,13 +226,8 @@ export interface AppSettings {
   defaultMode: 'windows' | 'wsl' | 'auto';
   windows: { claudePath?: string };
   wsl: { distro?: string };
-  gastownPath: string;
   logFilePath: string;
   theme: 'dark' | 'light' | 'system';
-  startMinimized: boolean;
-  minimizeToTray: boolean;
-  showModeToggle: boolean;
-  autoCheckUpdates: boolean;
   hasCompletedSetup: boolean;
 }
 
@@ -535,44 +526,60 @@ export interface ActivitySummary {
   averageDuration: number;
 }
 
-// Clawdbot Intent/Action types
-export type IntentType = 'navigation' | 'task_management' | 'execution' | 'query' | 'settings' | 'unknown';
-
-export interface Intent {
-  type: IntentType;
-  action: string;
-  parameters: Record<string, unknown>;
-  confidence: number;
-  originalText: string;
-}
-
-export interface ActionResult {
-  success: boolean;
-  action: string;
-  response: string;
-  data?: Record<string, unknown>;
-  navigate?: string;
-  requiresConfirmation?: boolean;
-  confirmationMessage?: string;
-}
-
-// Clawdbot personality types
-export type TraitLevel = 'low' | 'medium' | 'high';
-
-export interface ClawdbotPersonality {
+// Project Brief types
+export interface ProjectBrief {
   id: string;
-  name: string;
-  description: string;
-  traits: {
-    verbosity: TraitLevel;
-    humor: TraitLevel;
-    formality: TraitLevel;
-    enthusiasm: TraitLevel;
-  };
-  customInstructions?: string;
-  greeting?: string;
-  signoff?: string;
-  isDefault?: boolean;
+  projectId: string;
+  projectPath: string;
+  projectName: string;
   createdAt: string;
   updatedAt: string;
+  summary: string;
+  techStack: string[];
+  keyFiles: Array<{ path: string; purpose: string }>;
+  architecture: string;
+  recentChanges: Array<{ date: string; summary: string; hash: string }>;
+  activeWork: string[];
+  suggestedTasks: Array<{ title: string; description: string; priority: 'low' | 'medium' | 'high' }>;
+  codeMetrics?: {
+    totalFiles: number;
+    totalLines: number;
+    languages: Record<string, number>;
+  };
+}
+
+export interface DeepDiveTask {
+  id: string;
+  title: string;
+  description: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  estimatedComplexity: 'low' | 'medium' | 'high';
+  executionOutput?: string;
+  executionError?: string;
+  executedAt?: string;
+}
+
+export interface DeepDivePlan {
+  id: string;
+  projectId: string;
+  projectName: string;
+  createdAt: string;
+  status: 'draft' | 'approved' | 'in_progress' | 'completed';
+  phases: Array<{
+    id: string;
+    name: string;
+    description: string;
+    tasks: DeepDiveTask[];
+  }>;
+  totalTasks: number;
+  completedTasks: number;
+}
+
+export interface NewProjectSpec {
+  name: string;
+  description: string;
+  type: 'web' | 'cli' | 'library' | 'api' | 'desktop' | 'mobile' | 'other';
+  techStack: string[];
+  features: string[];
+  structure?: Record<string, string>;
 }

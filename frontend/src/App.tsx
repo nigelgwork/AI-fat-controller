@@ -8,11 +8,8 @@ import NewProject from './pages/NewProject';
 import Sessions from './pages/Sessions';
 import Agents from './pages/Agents';
 import Tasks from './pages/Tasks';
-import Settings from './pages/Settings';
-import ClawdbotSettings from './pages/ClawdbotSettings';
-import Clawdbot from './pages/Clawdbot';
 import ActivityLog from './pages/ActivityLog';
-import FloatingAssistant from './components/FloatingAssistant';
+import Settings from './pages/Settings';
 import ErrorBoundary from './components/ErrorBoundary';
 import CommandPalette from './components/CommandPalette';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -34,16 +31,14 @@ function App() {
           <Route path="controller" element={<Controller />} />
           <Route path="projects" element={<Projects />} />
           <Route path="projects/new" element={<NewProject />} />
-          <Route path="sessions" element={<Sessions />} />
-          <Route path="agents" element={<Agents />} />
-          <Route path="tasks" element={<Tasks />} />
-          <Route path="chat" element={<Clawdbot />} />
-          <Route path="clawdbot" element={<ClawdbotSettings />} />
-          <Route path="activity" element={<ActivityLog />} />
+          <Route path="projects/tasks" element={<Tasks />} />
+          <Route path="projects/sessions" element={<Sessions />} />
+          <Route path="projects/history" element={<ActivityLog />} />
+          <Route path="resources/agents" element={<Agents />} />
+          <Route path="resources/mcp" element={<Settings />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
-      <FloatingAssistant />
       <CommandPalette
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}

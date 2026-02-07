@@ -5,7 +5,6 @@ import { BrowserRouter } from 'react-router-dom';
 import Dashboard from '../../pages/Dashboard';
 import { mockElectronAPI } from '../../test/setup';
 
-// Create a wrapper component with providers
 function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -30,14 +29,14 @@ describe('Dashboard', () => {
   it('renders the dashboard title', async () => {
     render(<Dashboard />, { wrapper: createWrapper() });
 
-    expect(screen.getByText('Town Overview')).toBeInTheDocument();
+    expect(screen.getByText('Dashboard')).toBeInTheDocument();
   });
 
   it('displays project count from system status', async () => {
     mockElectronAPI.getSystemStatus.mockResolvedValue({
       projects: [
-        { id: '1', name: 'Project 1', path: '/path/1', hasBeads: false },
-        { id: '2', name: 'Project 2', path: '/path/2', hasBeads: true },
+        { id: '1', name: 'Project 1', path: '/path/1', hasClaude: true },
+        { id: '2', name: 'Project 2', path: '/path/2', hasClaude: true },
       ],
       sessions: [],
       discovered: [],
@@ -76,7 +75,7 @@ describe('Dashboard', () => {
           projectName: 'Test Project',
           command: 'claude',
           status: 'running',
-          source: 'windows',
+          source: 'wsl',
         },
       ],
       discovered: [],
@@ -92,17 +91,16 @@ describe('Dashboard', () => {
 
   it('shows correct mode status', async () => {
     mockElectronAPI.getModeStatus.mockResolvedValue({
-      current: 'windows',
-      windows: { available: true, version: '1.0.0' },
-      wsl: { available: true, distro: 'Ubuntu' },
+      current: 'linux',
+      linux: { available: true, claudePath: '/usr/bin/claude' },
+      wsl: { detected: false },
     });
 
     render(<Dashboard />, { wrapper: createWrapper() });
 
     await waitFor(() => {
-      // Check for Windows section with Active badge
-      expect(screen.getByText('Windows')).toBeInTheDocument();
-      expect(screen.getByText('Active')).toBeInTheDocument();
+      expect(screen.getByText('Claude Code')).toBeInTheDocument();
+      expect(screen.getByText('Available')).toBeInTheDocument();
     });
   });
 
@@ -117,13 +115,13 @@ describe('Dashboard', () => {
     render(<Dashboard />, { wrapper: createWrapper() });
 
     const tasksLink = screen.getByRole('link', { name: /tasks/i });
-    expect(tasksLink).toHaveAttribute('href', '/tasks');
+    expect(tasksLink).toHaveAttribute('href', '/projects/tasks');
   });
 
   it('navigates to sessions page when clicking sessions card', () => {
     render(<Dashboard />, { wrapper: createWrapper() });
 
     const sessionsLink = screen.getByRole('link', { name: /claude sessions/i });
-    expect(sessionsLink).toHaveAttribute('href', '/sessions');
+    expect(sessionsLink).toHaveAttribute('href', '/projects/sessions');
   });
 });

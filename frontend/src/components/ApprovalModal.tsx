@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, FileText, Check, XCircle, AlertTriangle } from 'lucide-react';
-import type { ApprovalRequest } from '../types/gastown';
+import type { ApprovalRequest } from '@shared/types';
 
 interface ApprovalModalProps {
   request: ApprovalRequest;

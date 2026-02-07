@@ -17,8 +17,7 @@ import {
   X,
   Plus,
 } from 'lucide-react';
-import type { NewProjectSpec } from '../types/gastown';
-import SpeechInput from '../components/SpeechInput';
+import type { NewProjectSpec } from '@shared/types';
 
 type ProjectType = 'web' | 'cli' | 'library' | 'api' | 'desktop' | 'mobile' | 'other';
 type WizardStep = 'describe' | 'type' | 'stack' | 'features' | 'review' | 'creating';
@@ -46,8 +45,6 @@ const COMMON_TECH_STACKS: Record<ProjectType, string[]> = {
 export default function NewProject() {
   const navigate = useNavigate();
   const [step, setStep] = useState<WizardStep>('describe');
-  const [isListening, setIsListening] = useState(false);
-
   // Form state
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -61,28 +58,6 @@ export default function NewProject() {
   // Creation state
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const handleSpeechTranscript = (transcript: string) => {
-    if (step === 'describe') {
-      setDescription(prev => prev + ' ' + transcript);
-    } else if (step === 'features') {
-      setNewFeature(transcript);
-    }
-  };
-
-  const handleSpeechFinal = (transcript: string) => {
-    if (step === 'describe') {
-      // Try to extract name from description
-      const words = transcript.trim().split(' ');
-      if (words.length > 0 && !name) {
-        // Use first few words as potential name
-        const potentialName = words.slice(0, 3).join('-').toLowerCase().replace(/[^a-z0-9-]/g, '');
-        if (potentialName.length > 2) {
-          setName(potentialName);
-        }
-      }
-    }
-  };
 
   const toggleTech = (tech: string) => {
     setTechStack(prev =>
@@ -246,20 +221,7 @@ export default function NewProject() {
             rows={5}
             className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-purple-500 resize-none"
           />
-          <div className="absolute bottom-3 right-3">
-            <SpeechInput
-              onTranscript={handleSpeechTranscript}
-              onFinalTranscript={handleSpeechFinal}
-              onListeningChange={setIsListening}
-              className="p-2 bg-slate-600 hover:bg-slate-500 rounded-lg transition-colors"
-            />
-          </div>
         </div>
-        {isListening && (
-          <p className="text-sm text-purple-400 mt-2 animate-pulse">
-            Listening... Speak your project description
-          </p>
-        )}
       </div>
     </div>
   );
@@ -385,14 +347,6 @@ export default function NewProject() {
               placeholder="e.g., User authentication, Dark mode, API integration..."
               className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-purple-500"
             />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2">
-              <SpeechInput
-                onTranscript={(t) => setNewFeature(t)}
-                onFinalTranscript={addFeature}
-                onListeningChange={setIsListening}
-                className="p-1.5 bg-slate-600 hover:bg-slate-500 rounded transition-colors"
-              />
-            </div>
           </div>
           <button
             onClick={addFeature}

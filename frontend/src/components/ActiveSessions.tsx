@@ -13,7 +13,7 @@ import {
   Square,
   Activity,
 } from 'lucide-react';
-import type { ExecutionSession, SessionLogEntry, ExecutionSessionSummary } from '../types/gastown';
+import type { ExecutionSession, SessionLogEntry, ExecutionSessionSummary } from '@shared/types';
 
 interface Props {
   showHistory?: boolean;
@@ -180,7 +180,7 @@ export default function ActiveSessions({ showHistory = false, maxHistoryItems = 
           </div>
 
           <div className="space-y-2">
-            {activeSessions.map((session) => (
+            {activeSessions.map((session: ExecutionSessionSummary) => (
               <SessionCard
                 key={session.id}
                 session={session}
@@ -208,7 +208,7 @@ export default function ActiveSessions({ showHistory = false, maxHistoryItems = 
           </div>
 
           <div className="space-y-2">
-            {sessionHistory.map((session) => (
+            {sessionHistory.map((session: ExecutionSessionSummary) => (
               <SessionCard
                 key={session.id}
                 session={session}

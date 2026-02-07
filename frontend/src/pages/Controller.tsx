@@ -25,9 +25,8 @@ import {
   FileText,
   Wrench,
 } from 'lucide-react';
-import type { ControllerState, ApprovalRequest, ActionLog } from '../types/gastown';
+import type { ControllerState, ApprovalRequest, ActionLog, ConversationEntry, ConversationSession } from '@shared/types';
 import ApprovalModal from '../components/ApprovalModal';
-import SpeechInput from '../components/SpeechInput';
 
 interface Message {
   id: string;
@@ -163,7 +162,7 @@ export default function Controller() {
   useEffect(() => {
     if (selectedSessionId) {
       api.loadConversation(selectedSessionId).then((entries) => {
-        const msgs: Message[] = entries.map((e) => ({
+        const msgs: Message[] = entries.map((e: ConversationEntry) => ({
           id: e.id,
           role: e.role,
           content: e.content,
@@ -277,23 +276,7 @@ export default function Controller() {
     }
 
     try {
-      // Check if it's a direct command
-      const isDirectCommand = input.trim().startsWith('gt ') || input.trim().startsWith('bd ');
-
-      let result;
-      if (isDirectCommand) {
-        const parts = input.trim().split(/\s+/);
-        const cmd = parts[0];
-        const args = parts.slice(1);
-
-        if (cmd === 'gt') {
-          result = await api.executeGt(args);
-        } else {
-          result = await api.executeBd(args);
-        }
-      } else {
-        result = await api.executeClaudeCode(input.trim());
-      }
+      const result = await api.executeClaudeCode(input.trim());
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -433,7 +416,7 @@ export default function Controller() {
   const isActive = controllerState?.status !== 'idle';
   const isPaused = controllerState?.status === 'paused';
   const isWindingDown = controllerState?.status === 'winding_down';
-  const pendingApprovals = approvalQueue.filter((r) => r.status === 'pending');
+  const pendingApprovals = approvalQueue.filter((r: ApprovalRequest) => r.status === 'pending');
 
   return (
     <div className="flex h-full gap-4">
@@ -457,7 +440,7 @@ export default function Controller() {
             </div>
           ) : (
             <div className="divide-y divide-slate-700">
-              {conversationSessions.map((session) => (
+              {conversationSessions.map((session: ConversationSession) => (
                 <div
                   key={session.id}
                   className={`p-3 cursor-pointer hover:bg-slate-700/50 transition-colors group ${
@@ -793,18 +776,6 @@ export default function Controller() {
               {/* Chat input */}
               <form onSubmit={handleSubmit} className="p-4 border-t border-slate-700">
                 <div className="flex gap-2">
-                  <SpeechInput
-                    onFinalTranscript={(text) => setInput((prev) => prev ? `${prev} ${text}` : text)}
-                    onCommand={(command) => {
-                      // Handle voice commands
-                      if (command === 'pause') pauseMutation.mutate();
-                      else if (command === 'resume') resumeMutation.mutate();
-                      else if (command === 'approve' && pendingApprovals.length > 0) approveMutation.mutate(pendingApprovals[0].id);
-                      else if (command === 'reject' && pendingApprovals.length > 0) rejectMutation.mutate({ id: pendingApprovals[0].id });
-                      else if (command === 'clear') setInput('');
-                    }}
-                    disabled={loading}
-                  />
                   <input
                     type="text"
                     value={input}
@@ -834,7 +805,7 @@ export default function Controller() {
                 </div>
               ) : (
                 <div className="divide-y divide-slate-700">
-                  {pendingApprovals.map((request) => (
+                  {pendingApprovals.map((request: ApprovalRequest) => (
                     <div key={request.id} className="p-4 hover:bg-slate-700/50 transition-colors">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
@@ -888,7 +859,7 @@ export default function Controller() {
                 </div>
               ) : (
                 <div className="divide-y divide-slate-700">
-                  {actionLogs.map((log) => (
+                  {actionLogs.map((log: ActionLog) => (
                     <div key={log.id} className="p-3 hover:bg-slate-700/30 transition-colors">
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-slate-500 w-14">{formatTime(log.timestamp)}</span>

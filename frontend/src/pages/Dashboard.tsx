@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CheckSquare, RefreshCw, FolderGit, Monitor } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '@/api';
-import type { TasksStats } from '../types/gastown';
+import type { TasksStats } from '@shared/types';
 
 interface ClaudeSession {
   pid: number;
@@ -46,7 +46,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-white">Town Overview</h2>
+      <h2 className="text-2xl font-bold text-white">Dashboard</h2>
 
       {/* Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -59,7 +59,7 @@ export default function Dashboard() {
             subtitle={discoveredCount > 0 ? `${discoveredCount} more found` : undefined}
           />
         </Link>
-        <Link to="/sessions">
+        <Link to="/projects/sessions">
           <StatCard
             icon={Monitor}
             label="Claude Sessions"
@@ -68,7 +68,7 @@ export default function Dashboard() {
             subtitle={runningCount > 0 ? "Running" : recentSessions.length > 0 ? `${recentSessions.length} recent` : "None running"}
           />
         </Link>
-        <Link to="/tasks">
+        <Link to="/projects/tasks">
           <StatCard
             icon={CheckSquare}
             label="Tasks"
@@ -84,7 +84,7 @@ export default function Dashboard() {
         <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium text-slate-400">Running Claude Sessions</h3>
-            <Link to="/sessions" className="text-xs text-cyan-400 hover:text-cyan-300">
+            <Link to="/projects/sessions" className="text-xs text-cyan-400 hover:text-cyan-300">
               View all →
             </Link>
           </div>
@@ -119,7 +119,7 @@ export default function Dashboard() {
               </div>
             ))}
             {runningCount > 3 && (
-              <Link to="/sessions" className="block text-center text-xs text-cyan-400 hover:text-cyan-300 py-2">
+              <Link to="/projects/sessions" className="block text-center text-xs text-cyan-400 hover:text-cyan-300 py-2">
                 +{runningCount - 3} more running →
               </Link>
             )}

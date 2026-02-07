@@ -25,8 +25,6 @@ import {
   getTaskById,
 } from './tasks';
 import type { Task, TasksStats } from './tasks';
-import { parseIntent, getAvailableCommands } from './intent-parser';
-import { dispatchAction, executeConfirmedAction } from './action-dispatcher';
 import { sendNotification, getNtfyConfig } from './ntfy';
 import { logActivity } from '../stores/activity-log';
 
@@ -452,74 +450,12 @@ export async function processNtfyText(message: string): Promise<NtfyCommandResul
     };
   }
 
-  try {
-    // Parse intent using Clawdbot's intent parser
-    const intent = parseIntent(message);
+  logActivity('user_action', `ntfy message: ${message}`, {});
 
-    log.info('Parsed intent from ntfy message', { message, intent });
-    logActivity('user_action', `ntfy message: ${message}`, { intent });
-
-    if (intent.type === 'unknown' || intent.confidence < 0.5) {
-      return {
-        success: false,
-        response: `I didn't understand that. Try /help for commands, or be more specific.\n\nExamples:\n- "add task fix the login bug"\n- "show me pending tasks"\n- "pause the controller"`,
-      };
-    }
-
-    // Dispatch the action
-    const result = await dispatchAction(intent);
-
-    if (result.requiresConfirmation) {
-      // Send confirmation request via ntfy
-      const config = getNtfyConfig();
-      if (config.enabled) {
-        const responseTopic = config.responseTopic || config.topic + '-response';
-        await sendNotification(
-          'Confirm Action',
-          result.confirmationMessage || 'Confirm this action?',
-          {
-            priority: 'high',
-            tags: ['question'],
-            actions: [
-              {
-                action: 'http',
-                label: 'Confirm',
-                url: `${config.serverUrl}/${responseTopic}`,
-                method: 'POST',
-                body: JSON.stringify({ command: '/confirm', message: result.confirmationMessage }),
-                clear: true,
-              },
-              {
-                action: 'http',
-                label: 'Cancel',
-                url: `${config.serverUrl}/${responseTopic}`,
-                method: 'POST',
-                body: JSON.stringify({ command: '/cancel' }),
-                clear: true,
-              },
-            ],
-          }
-        );
-      }
-      return {
-        success: true,
-        response: result.confirmationMessage || 'Action requires confirmation.',
-        data: { requiresConfirmation: true },
-      };
-    }
-
-    return {
-      success: result.success,
-      response: result.response,
-      data: result.data,
-    };
-  } catch (error) {
-    log.error('Error processing ntfy text', error);
-    return {
-      success: false,
-      response: `Error processing message: ${error instanceof Error ? error.message : 'Unknown error'}`,
-    };
-  }
+  return {
+    success: false,
+    response: `Free-form text processing is not available. Use /help for available commands.\n\nExamples:\n- "/status" - show current status\n- "/tasks" - list tasks\n- "/pause" - pause the controller`,
+  };
 }
 
 /**

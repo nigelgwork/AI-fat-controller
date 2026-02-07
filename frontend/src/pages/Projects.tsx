@@ -26,8 +26,7 @@ import {
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import CollapsibleHelp from '../components/CollapsibleHelp';
-import type { ProjectBrief, DeepDivePlan } from '../types/gastown';
-import type { CloneOptions, SetupCommand, CloneProgress, AddProjectFromGitResult } from '../types/electron';
+import type { ProjectBrief, DeepDivePlan, CloneOptions, SetupCommand, CloneProgress, AddProjectFromGitResult } from '@shared/types';
 
 interface Project {
   id: string;
@@ -821,7 +820,7 @@ function CloneFromGitDialog({
         if (result.cloneResult?.detectedSetup) {
           setDetectedSetup(result.cloneResult.detectedSetup);
           // Select all by default
-          setSelectedSetup(new Set(result.cloneResult.detectedSetup.map((_, i) => i)));
+          setSelectedSetup(new Set(result.cloneResult.detectedSetup.map((_: SetupCommand, i: number) => i)));
         }
       } else {
         setError(result?.error || 'Clone failed');

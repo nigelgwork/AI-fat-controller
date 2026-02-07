@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { api } from '@/api';
 import { Settings as SettingsIcon, Monitor, Terminal, Folder, RefreshCw, Download, Info, Cpu, Save, Bug, CheckCircle, XCircle, Bell, Send, Gauge, AlertTriangle, FileText } from 'lucide-react';
-import type { NtfyConfig, UsageLimitConfig } from '../types/gastown';
+import type { NtfyConfig, UsageLimitConfig } from '@shared/types';
 import MCPServerConfigPanel from '../components/MCPServerConfig';
 
 export default function Settings() {

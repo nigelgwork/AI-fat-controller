@@ -20,7 +20,7 @@ import {
   FileText,
   FolderGit,
 } from 'lucide-react';
-import type { ActivityCategory } from '../types/electron.d';
+import type { ActivityCategory, ActivityLogEntry } from '@shared/types';
 
 const CATEGORY_CONFIG: Record<ActivityCategory, { label: string; icon: typeof Activity; color: string }> = {
   execution: { label: 'Execution', icon: Cpu, color: 'text-cyan-400 bg-cyan-500/20' },
@@ -343,7 +343,7 @@ export default function ActivityLog() {
           </div>
         ) : (
           <div className="divide-y divide-slate-700">
-            {displayLogs.map((entry) => {
+            {displayLogs.map((entry: ActivityLogEntry) => {
               const config = CATEGORY_CONFIG[entry.category];
               const Icon = config.icon;
               const isExpanded = expandedEntries.has(entry.id);

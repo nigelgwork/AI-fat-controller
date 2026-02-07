@@ -9,24 +9,20 @@ import {
   Settings,
   FolderGit,
   Crown,
-  Sparkles,
   Activity,
-  MessageCircle,
+  Plug,
 } from 'lucide-react';
-import ModeToggle from './ModeToggle';
-import UpdateBanner from './UpdateBanner';
 import ThemeToggle from './ThemeToggle';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/controller', icon: Crown, label: 'Phat Controller' },
   { to: '/projects', icon: FolderGit, label: 'Projects' },
-  { to: '/sessions', icon: Monitor, label: 'Sessions' },
-  { to: '/agents', icon: Bot, label: 'Agents' },
-  { to: '/tasks', icon: CheckSquare, label: 'Tasks' },
-  { to: '/chat', icon: MessageCircle, label: 'Clawdbot Chat' },
-  { to: '/clawdbot', icon: Sparkles, label: 'Clawdbot Settings' },
-  { to: '/activity', icon: Activity, label: 'Activity Log' },
+  { to: '/projects/tasks', icon: CheckSquare, label: 'Tasks' },
+  { to: '/projects/sessions', icon: Monitor, label: 'Sessions' },
+  { to: '/projects/history', icon: Activity, label: 'History' },
+  { to: '/resources/agents', icon: Bot, label: 'Agents' },
+  { to: '/resources/mcp', icon: Plug, label: 'MCP' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -51,6 +47,7 @@ export default function Layout() {
             <NavLink
               key={to}
               to={to}
+              end={to === '/'}
               className={({ isActive }) =>
                 `w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
                   isActive
@@ -72,9 +69,7 @@ export default function Layout() {
         <header className="h-14 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-4">
           <h1 className="text-lg font-semibold text-white">Phat Controller</h1>
           <div className="flex items-center gap-4">
-            <UpdateBanner />
             <ThemeToggle compact />
-            <ModeToggle />
             {version && (
               <span className="text-xs text-slate-500 font-mono">v{version}</span>
             )}

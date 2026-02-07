@@ -1,7 +1,7 @@
 import { apiGet, apiPost, apiPut, apiDelete } from './client';
 import { wsClient } from './websocket';
 
-// Server-side API that mirrors the ElectronAPI interface
+// Server-side API
 export const serverApi = {
   // Mode
   getMode: () => apiGet('/mode'),
@@ -17,15 +17,6 @@ export const serverApi = {
   continueClaudeSession: (message: string, systemPrompt?: string, projectPath?: string) =>
     apiPost('/claude/continue', { message, systemPrompt, projectPath }),
 
-  // Gas Town CLI
-  executeGt: (args: string[]) => apiPost('/claude/execute-gt', { args }),
-  executeBd: (args: string[]) => apiPost('/claude/execute-bd', { args }),
-
-  // Beads
-  listBeads: () => apiGet('/beads'),
-  getBeadsStats: () => apiGet('/beads/stats'),
-  getBeadsEvents: (limit?: number) => apiGet('/beads/events', limit ? { limit: String(limit) } : undefined),
-
   // Settings
   getSetting: (key: string) => apiGet(`/settings/${key}`),
   setSetting: (key: string, value: any) => apiPut(`/settings/${key}`, { value }),
@@ -33,15 +24,15 @@ export const serverApi = {
 
   // App
   getVersion: () => apiGet('/system/version'),
-  checkForUpdates: () => Promise.resolve(), // No-op in Docker
-  installUpdate: () => Promise.resolve(), // No-op in Docker
-  quit: () => Promise.resolve(), // No-op in Docker
-  minimize: () => Promise.resolve(), // No-op in Docker
+  checkForUpdates: () => Promise.resolve(),
+  installUpdate: () => Promise.resolve(),
+  quit: () => Promise.resolve(),
+  minimize: () => Promise.resolve(),
   getUpdateStatus: () => Promise.resolve({
     checking: false, available: false, downloaded: false, downloading: false,
     progress: 0, version: null, releaseNotes: null, error: null,
   }),
-  downloadUpdate: () => Promise.resolve(), // No-op in Docker
+  downloadUpdate: () => Promise.resolve(),
   getDebugInfo: () => apiGet('/system/debug'),
 
   // Projects
@@ -50,7 +41,7 @@ export const serverApi = {
   removeProject: (id: string) => apiDelete(`/projects/${id}`),
   refreshProjects: () => apiPost('/projects/refresh'),
   discoverProjects: () => apiGet('/projects/discover'),
-  browseForProject: () => Promise.resolve(null), // No native dialog in Docker - frontend shows text input instead
+  browseForProject: () => Promise.resolve(null),
 
   // Git clone
   cloneFromGit: (options: any) => apiPost('/projects/clone', options),
@@ -106,13 +97,6 @@ export const serverApi = {
   getUsageLimitConfig: () => apiGet('/controller/usage-limits'),
   updateUsageLimitConfig: (config: any) => apiPut('/controller/usage-limits', config),
   getUsagePercentages: () => apiGet('/controller/usage-percentages'),
-
-  // Backwards compatibility: Mayor aliases
-  getMayorState: () => apiGet('/controller/state'),
-  activateMayor: () => apiPost('/controller/activate'),
-  deactivateMayor: () => apiPost('/controller/deactivate'),
-  pauseMayor: () => apiPost('/controller/pause'),
-  resumeMayor: () => apiPost('/controller/resume'),
 
   // Conversations
   createConversationSession: (projectId: string, projectName: string) =>
@@ -178,55 +162,30 @@ export const serverApi = {
 
   // Project Briefs
   generateProjectBrief: (projectId: string, projectPath: string, projectName: string) =>
-    apiPost('/briefs/generate', { projectId, projectPath, projectName }),
-  getProjectBrief: (projectId: string) => apiGet(`/briefs/${projectId}`),
-  deleteProjectBrief: (projectId: string) => apiDelete(`/briefs/${projectId}`),
-  listProjectBriefs: () => apiGet('/briefs'),
+    apiPost('/projects/briefs/generate', { projectId, projectPath, projectName }),
+  getProjectBrief: (projectId: string) => apiGet(`/projects/briefs/${projectId}`),
+  deleteProjectBrief: (projectId: string) => apiDelete(`/projects/briefs/${projectId}`),
+  listProjectBriefs: () => apiGet('/projects/briefs'),
 
   // Deep Dive Plans
   generateDeepDivePlan: (projectId: string, projectPath: string, projectName: string, focus?: string) =>
-    apiPost('/briefs/deep-dive/generate', { projectId, projectPath, projectName, focus }),
-  getDeepDivePlan: (projectId: string) => apiGet(`/briefs/deep-dive/${projectId}`),
+    apiPost('/projects/briefs/deep-dive/generate', { projectId, projectPath, projectName, focus }),
+  getDeepDivePlan: (projectId: string) => apiGet(`/projects/briefs/deep-dive/${projectId}`),
   updateDeepDivePlan: (projectId: string, updates: any) =>
-    apiPut(`/briefs/deep-dive/${projectId}`, updates),
-  deleteDeepDivePlan: (projectId: string) => apiDelete(`/briefs/deep-dive/${projectId}`),
+    apiPut(`/projects/briefs/deep-dive/${projectId}`, updates),
+  deleteDeepDivePlan: (projectId: string) => apiDelete(`/projects/briefs/deep-dive/${projectId}`),
   executeDeepDiveTask: (projectId: string, taskId: string) =>
-    apiPost(`/briefs/deep-dive/${projectId}/execute/${taskId}`),
+    apiPost(`/projects/briefs/deep-dive/${projectId}/execute/${taskId}`),
   cancelDeepDiveTask: (projectId: string, taskId: string) =>
-    apiPost(`/briefs/deep-dive/${projectId}/cancel/${taskId}`),
+    apiPost(`/projects/briefs/deep-dive/${projectId}/cancel/${taskId}`),
   convertDeepDiveToTasks: (projectId: string, options?: any) =>
-    apiPost(`/briefs/deep-dive/${projectId}/convert`, options),
+    apiPost(`/projects/briefs/deep-dive/${projectId}/convert`, options),
   convertDeepDiveTaskToProjectTask: (projectId: string, taskId: string) =>
-    apiPost(`/briefs/deep-dive/${projectId}/convert/${taskId}`),
+    apiPost(`/projects/briefs/deep-dive/${projectId}/convert/${taskId}`),
 
   // New Project
   scaffoldNewProject: (targetPath: string, spec: any) =>
     apiPost('/projects/scaffold', { targetPath, spec }),
-
-  // Screenshots
-  captureScreen: (options?: any) => apiPost('/screenshots/capture', options),
-  captureActiveWindow: () => apiPost('/screenshots/capture-active'),
-  analyzeScreenshot: (screenshotPath: string, prompt: string) =>
-    apiPost('/screenshots/analyze', { screenshotPath, prompt }),
-  verifyUIElement: (description: string, screenshotPath?: string) =>
-    apiPost('/screenshots/verify', { description, screenshotPath }),
-  listScreenshots: () => apiGet('/screenshots'),
-  deleteScreenshot: (filePath: string) => apiDelete(`/screenshots?path=${encodeURIComponent(filePath)}`),
-  getLatestScreenshot: () => apiGet('/screenshots/latest'),
-
-  // GUI Testing
-  runGuiTest: (scenarioId: string) => apiPost(`/gui-tests/${scenarioId}/run`),
-  createGuiTest: (scenario: any) => apiPost('/gui-tests', scenario),
-  getGuiTest: (id: string) => apiGet(`/gui-tests/${id}`),
-  updateGuiTest: (id: string, updates: any) => apiPut(`/gui-tests/${id}`, updates),
-  deleteGuiTest: (id: string) => apiDelete(`/gui-tests/${id}`),
-  listGuiTests: () => apiGet('/gui-tests'),
-  getGuiTestResults: (scenarioId: string, limit?: number) =>
-    apiGet(`/gui-tests/${scenarioId}/results`, limit ? { limit: String(limit) } : undefined),
-  generateGuiTest: (description: string, appName?: string) =>
-    apiPost('/gui-tests/generate', { description, appName }),
-  runGuiTestWithConfig: (scenarioId: string, config?: any) =>
-    apiPost(`/gui-tests/${scenarioId}/run-with-config`, config),
 
   // MCP
   getMcpConfigs: () => apiGet('/mcp/configs'),
@@ -247,16 +206,6 @@ export const serverApi = {
     apiPost('/images/save-temp', { base64Data, filename }),
   cleanupTempImages: () => apiPost('/images/cleanup'),
 
-  // Clawdbot Personality
-  getPersonalities: () => apiGet('/clawdbot/personalities'),
-  getPersonality: (id: string) => apiGet(`/clawdbot/personalities/${id}`),
-  getCurrentPersonality: () => apiGet('/clawdbot/personality/current'),
-  getCurrentPersonalityId: () => apiGet('/clawdbot/personality/current-id'),
-  setCurrentPersonality: (id: string) => apiPut('/clawdbot/personality/current', { id }),
-  savePersonality: (personality: any) => apiPost('/clawdbot/personalities', personality),
-  deletePersonality: (id: string) => apiDelete(`/clawdbot/personalities/${id}`),
-  getClawdbotGreeting: () => apiGet('/clawdbot/greeting'),
-
   // Token History
   getTokenHistory: (days?: number) => apiGet('/token-history', days ? { days: String(days) } : undefined),
   getTokenHistoryTotal: (days?: number) => apiGet('/token-history/total', days ? { days: String(days) } : undefined),
@@ -274,19 +223,6 @@ export const serverApi = {
   getActivitySummary: (dateRange?: any) => apiGet('/activity/summary', dateRange),
   clearActivityLogs: () => apiDelete('/activity'),
 
-  // Clawdbot Intent/Action
-  parseIntent: (text: string) => apiPost('/clawdbot/parse-intent', { text }),
-  dispatchAction: (intent: any, claudeSessionId?: string) =>
-    apiPost('/clawdbot/dispatch-action', { intent, claudeSessionId }),
-  executeConfirmedAction: (confirmationMessage: string) =>
-    apiPost('/clawdbot/execute-confirmed', { confirmationMessage }),
-  getAvailableCommands: () => apiGet('/clawdbot/commands'),
-
-  // Clawdbot Messages
-  getClawdbotMessages: () => apiGet('/clawdbot/messages'),
-  addClawdbotMessage: (message: any) => apiPost('/clawdbot/messages', message),
-  clearClawdbotMessages: () => apiDelete('/clawdbot/messages'),
-
   // Execution Sessions
   getActiveSessions: () => apiGet('/sessions/active'),
   getSessionHistory: (limit?: number) => apiGet('/sessions/history', limit ? { limit: String(limit) } : undefined),
@@ -294,6 +230,9 @@ export const serverApi = {
   getSessionLogs: (id: string, limit?: number) =>
     apiGet(`/sessions/${id}/logs`, limit ? { limit: String(limit) } : undefined),
   cancelSession: (id: string) => apiPost(`/sessions/${id}/cancel`),
+
+  // System metrics
+  getSystemMetrics: () => apiGet('/system/metrics'),
 
   // Event listeners via WebSocket
   onSessionUpdate: (callback: (data: any) => void) => wsClient.subscribe('session:updated', callback),
@@ -310,9 +249,6 @@ export const serverApi = {
   onActionCompleted: (callback: (log: any) => void) => wsClient.subscribe('controller:actionCompleted', callback),
   onProgressUpdated: (callback: (progress: any) => void) => wsClient.subscribe('controller:progressUpdated', callback),
   onUsageWarning: (callback: (data: any) => void) => wsClient.subscribe('controller:usageWarning', callback),
-  onGuiTestProgress: (callback: (data: any) => void) => wsClient.subscribe('gui-test:progress', callback),
-  onGuiTestComplete: (callback: (result: any) => void) => wsClient.subscribe('gui-test:complete', callback),
-  onMayorStateChanged: (callback: (state: any) => void) => wsClient.subscribe('controller:stateChanged', callback),
   onNtfyQuestionAsked: (callback: (question: any) => void) => wsClient.subscribe('ntfy:questionAsked', callback),
   onNtfyQuestionAnswered: (callback: (question: any) => void) => wsClient.subscribe('ntfy:questionAnswered', callback),
   onExecutorLog: (callback: (log: any) => void) => wsClient.subscribe('executor-log', callback),

@@ -15,7 +15,7 @@ import {
   Terminal,
   Globe,
 } from 'lucide-react';
-import type { MCPServerConfig, MCPTool } from '../types/gastown';
+import type { MCPServerConfig, MCPTool } from '@shared/types';
 
 interface MCPServerConfigPanelProps {
   className?: string;

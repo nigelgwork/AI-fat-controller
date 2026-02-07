@@ -6,7 +6,7 @@ import os from 'os';
 import path from 'path';
 import { broadcast } from '../websocket';
 import { createLogger } from '../utils/logger';
-import { getGastownPath } from '../utils/paths';
+import { getDataDir } from '../utils/paths';
 import {
   IExecutor,
   ExecuteResult,
@@ -30,16 +30,15 @@ const execAsync = promisify(exec);
  */
 class LinuxExecutor implements IExecutor {
   private claudePath: string = '';
-  private gastownPath: string = '';
+  private defaultCwd: string = '';
 
   async initialize(): Promise<void> {
     this.claudePath = await this.findClaude();
-    this.gastownPath = getGastownPath();
-    ensureDir(this.gastownPath);
+    this.defaultCwd = getDataDir();
+    ensureDir(this.defaultCwd);
 
     log.info('Initialized LinuxExecutor');
     log.info('Claude path:', this.claudePath);
-    log.info('Gastown path:', this.gastownPath);
   }
 
   private async findClaude(): Promise<string> {
@@ -104,7 +103,7 @@ class LinuxExecutor implements IExecutor {
 
     args.push('--', message);
 
-    const cwd = projectPath || this.gastownPath;
+    const cwd = projectPath || this.defaultCwd;
     const result = await this.spawnWithJsonParsing(this.claudePath, args, cwd, start, 120000, executionId);
 
     if (systemPromptFile) {
@@ -140,7 +139,7 @@ class LinuxExecutor implements IExecutor {
 
       const child = spawn(cmd, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env, GASTOWN_PATH: this.gastownPath },
+        env: { ...process.env },
         cwd: validCwd,
       });
 
@@ -233,11 +232,11 @@ class LinuxExecutor implements IExecutor {
   private runCommand(cmd: string, args: string[]): Promise<ExecuteResult> {
     const start = Date.now();
     return new Promise((resolve) => {
-      const cwd = getValidCwd(this.gastownPath);
+      const cwd = getValidCwd(this.defaultCwd);
 
       const child = spawn(cmd, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env, GASTOWN_PATH: this.gastownPath },
+        env: { ...process.env },
         cwd,
       });
 

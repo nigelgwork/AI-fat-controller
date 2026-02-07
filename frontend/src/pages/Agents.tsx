@@ -5,7 +5,7 @@ import {
   Bot, RefreshCw, Plus, Trash2, Edit2, Save, X, ChevronRight, Package,
   FileText, Wand2, Code, Search, Hammer, Monitor, Terminal
 } from 'lucide-react';
-import type { ClaudeAgent } from '../types/electron';
+import type { ClaudeAgent } from '@shared/types';
 import CollapsibleHelp from '../components/CollapsibleHelp';
 
 const AGENT_COLORS = ['blue', 'green', 'yellow', 'magenta', 'red', 'cyan'] as const;

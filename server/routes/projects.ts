@@ -16,7 +16,6 @@ import {
   getRepoInfo,
 } from '../services/git-clone';
 import { setSetting } from '../services/settings';
-import { scaffoldNewProject } from '../services/project-briefs';
 
 const router: Router = Router();
 
@@ -136,13 +135,6 @@ router.post('/validate-url', asyncHandler(async (req, res) => {
   const { url } = req.body;
   const valid = isValidGitUrl(url);
   res.json(valid);
-}));
-
-// POST /scaffold - scaffoldNewProject
-router.post('/scaffold', asyncHandler(async (req, res) => {
-  const { targetPath, spec } = req.body;
-  const result = await scaffoldNewProject(targetPath, spec);
-  res.json(result);
 }));
 
 export default router;

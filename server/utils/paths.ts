@@ -18,10 +18,6 @@ export function getUserDataDir(): string {
   return getDataDir();
 }
 
-export function getGastownPath(): string {
-  return process.env.GASTOWN_PATH || path.join(getHomeDir(), 'gt');
-}
-
 export function getLogDirectory(): string {
   const logDir = path.join(getDataDir(), 'logs');
   if (!fs.existsSync(logDir)) {
