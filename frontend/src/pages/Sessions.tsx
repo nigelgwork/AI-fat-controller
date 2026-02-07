@@ -66,6 +66,18 @@ export default function Sessions() {
   const recentSessions = sessions?.filter(s => s.status === 'recent') || [];
   const claudeProjects = projects?.filter(p => p.hasClaude) || [];
 
+  // Group running sessions by environment
+  const runningWsl = runningSessions.filter(s => s.source === 'wsl');
+  const runningWindows = runningSessions.filter(s => s.source === 'windows');
+  const runningOther = runningSessions.filter(s => s.source !== 'wsl' && s.source !== 'windows');
+  const hasMultipleEnvs = (runningWsl.length > 0 ? 1 : 0) + (runningWindows.length > 0 ? 1 : 0) + (runningOther.length > 0 ? 1 : 0) > 1;
+
+  // Group recent sessions by environment
+  const recentWsl = recentSessions.filter(s => s.source === 'wsl');
+  const recentWindows = recentSessions.filter(s => s.source === 'windows');
+  const recentOther = recentSessions.filter(s => s.source !== 'wsl' && s.source !== 'windows');
+  const hasMultipleRecentEnvs = (recentWsl.length > 0 ? 1 : 0) + (recentWindows.length > 0 ? 1 : 0) + (recentOther.length > 0 ? 1 : 0) > 1;
+
   const handleRefresh = () => {
     refetchSessions();
     refetchResumable();
@@ -109,6 +121,18 @@ export default function Sessions() {
               Start Claude Code in a terminal to see it here
             </p>
           </div>
+        ) : hasMultipleEnvs ? (
+          <div>
+            {runningWsl.length > 0 && (
+              <EnvironmentGroup label="WSL" color="orange" sessions={runningWsl} />
+            )}
+            {runningWindows.length > 0 && (
+              <EnvironmentGroup label="Windows" color="blue" sessions={runningWindows} />
+            )}
+            {runningOther.length > 0 && (
+              <EnvironmentGroup label="Other" color="slate" sessions={runningOther} />
+            )}
+          </div>
         ) : (
           <div className="divide-y divide-slate-700">
             {runningSessions.map((session) => (
@@ -130,11 +154,25 @@ export default function Sessions() {
               </span>
             </h3>
           </div>
-          <div className="divide-y divide-slate-700">
-            {recentSessions.map((session) => (
-              <SessionCard key={`${session.sessionId || session.pid}-${session.source}`} session={session} isRecent />
-            ))}
-          </div>
+          {hasMultipleRecentEnvs ? (
+            <div>
+              {recentWsl.length > 0 && (
+                <EnvironmentGroup label="WSL" color="orange" sessions={recentWsl} isRecent />
+              )}
+              {recentWindows.length > 0 && (
+                <EnvironmentGroup label="Windows" color="blue" sessions={recentWindows} isRecent />
+              )}
+              {recentOther.length > 0 && (
+                <EnvironmentGroup label="Other" color="slate" sessions={recentOther} isRecent />
+              )}
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-700">
+              {recentSessions.map((session) => (
+                <SessionCard key={`${session.sessionId || session.pid}-${session.source}`} session={session} isRecent />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -299,6 +337,43 @@ function SessionCard({ session, isRecent }: SessionCardProps) {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+interface EnvironmentGroupProps {
+  label: string;
+  color: 'orange' | 'blue' | 'slate';
+  sessions: ClaudeSession[];
+  isRecent?: boolean;
+}
+
+function EnvironmentGroup({ label, color, sessions, isRecent }: EnvironmentGroupProps) {
+  const colorMap = {
+    orange: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    blue: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    slate: 'bg-slate-600 text-slate-300 border-slate-500/30',
+  };
+
+  return (
+    <div>
+      <div className={`px-4 py-2 border-b border-slate-700 flex items-center gap-2 ${colorMap[color].split(' ').slice(0, 1).join(' ')}`}>
+        <span className={`text-xs font-semibold uppercase tracking-wider ${colorMap[color].split(' ').slice(1, 2).join(' ')}`}>
+          {label}
+        </span>
+        <span className={`text-xs px-1.5 py-0.5 rounded ${colorMap[color]}`}>
+          {sessions.length}
+        </span>
+      </div>
+      <div className="divide-y divide-slate-700">
+        {sessions.map((session) => (
+          <SessionCard
+            key={`${session.sessionId || session.pid}-${session.source}`}
+            session={session}
+            isRecent={isRecent}
+          />
+        ))}
       </div>
     </div>
   );
