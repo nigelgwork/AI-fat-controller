@@ -242,6 +242,25 @@ const mockApi = {
   getMcpConfigs: vi.fn().mockResolvedValue([]),
   getMcpDefaultConfigs: vi.fn().mockResolvedValue([]),
 
+  // System metrics (DiagnosticsBar)
+  getSystemMetrics: vi.fn().mockResolvedValue({
+    system: { cpuPercent: 10, cpuCores: 8, memTotal: 8000000000, memUsed: 4000000000, memPercent: 50 },
+    app: { memRss: 100000000, memHeapUsed: 50000000, memHeapTotal: 80000000, uptime: 100 },
+  }),
+  getClaudeUsage: vi.fn().mockResolvedValue({
+    subscription: 'unknown', rateLimitTier: 'unknown',
+    session: { tokens: 0, messages: 0, limit: 400000, percent: 0 },
+    week: { tokens: 0, limit: 5000000, percent: 0 },
+    totals: { messages: 0, sessions: 0 },
+    lastUpdated: '',
+  }),
+
+  // Skills
+  listSkills: vi.fn().mockResolvedValue([]),
+
+  // ntfy questions
+  getPendingQuestions: vi.fn().mockResolvedValue([]),
+
   // Event listeners - return cleanup functions
   onUpdateChecking: vi.fn().mockReturnValue(() => {}),
   onUpdateAvailable: vi.fn().mockReturnValue(() => {}),

@@ -42,7 +42,7 @@ export default function MCPServerConfigPanel({ className = '' }: MCPServerConfig
   const { data: connectedServers = [] } = useQuery({
     queryKey: ['mcp-connected'],
     queryFn: () => api.getConnectedMcpServers() as Promise<string[]>,
-    refetchInterval: 5000, // Refresh every 5 seconds
+    refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   // Fetch default configs

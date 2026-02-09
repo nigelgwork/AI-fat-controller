@@ -35,7 +35,7 @@ export default function Dashboard() {
   const { data: systemStatus } = useQuery({
     queryKey: ['system-status'],
     queryFn: () => api.getSystemStatus() as Promise<SystemStatus>,
-    refetchInterval: 10000,
+    refetchInterval: 30000,
   });
 
   const projectCount = systemStatus?.projects?.length || 0;

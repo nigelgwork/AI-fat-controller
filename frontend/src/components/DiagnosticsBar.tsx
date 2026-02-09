@@ -3,26 +3,16 @@ import { Cpu, HardDrive, Clock, Zap } from 'lucide-react';
 import { api } from '@/api';
 
 interface SystemMetrics {
-  system: {
-    cpuPercent: number;
-    cpuCores: number;
-    memTotal: number;
-    memUsed: number;
-    memPercent: number;
-  };
-  app: {
-    memRss: number;
-    memHeapUsed: number;
-    memHeapTotal: number;
-    uptime: number;
-  };
+  system: { cpuPercent: number; cpuCores: number; memTotal: number; memUsed: number; memPercent: number };
+  app: { memRss: number; memHeapUsed: number; memHeapTotal: number; uptime: number };
 }
 
 interface ClaudeUsage {
   subscription: string;
   rateLimitTier: string;
-  today: { tokens: number; messages: number; limit: number; percent: number };
+  session: { tokens: number; messages: number; limit: number; percent: number };
   week: { tokens: number; limit: number; percent: number };
+  totals: { messages: number; sessions: number };
   lastUpdated: string;
 }
 
@@ -46,27 +36,6 @@ function formatUptime(seconds: number): string {
   return `${h}h ${m}m`;
 }
 
-function getSessionResetTime(): string {
-  const now = new Date();
-  // Session limits reset on a ~5hr rolling window
-  const periodMs = 5 * 60 * 60 * 1000;
-  const msIntoCurrentPeriod = now.getTime() % periodMs;
-  const msRemaining = periodMs - msIntoCurrentPeriod;
-  const minsRemaining = Math.floor(msRemaining / 60000);
-  if (minsRemaining < 60) return `${minsRemaining} min`;
-  const hrs = Math.floor(minsRemaining / 60);
-  const mins = minsRemaining % 60;
-  return `${hrs}h ${mins}m`;
-}
-
-function getWeeklyResetTime(): string {
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const daysUntilReset = (7 - dayOfWeek) % 7 || 7;
-  const resetDate = new Date(now.getTime() + daysUntilReset * 86400000);
-  return resetDate.toLocaleDateString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
-}
-
 function usageColor(percent: number): string {
   if (percent >= 80) return 'text-red-400';
   if (percent >= 50) return 'text-yellow-400';
@@ -84,7 +53,7 @@ export default function DiagnosticsBar() {
   const { data: metrics } = useQuery<SystemMetrics>({
     queryKey: ['system-metrics'],
     queryFn: () => api.getSystemMetrics(),
-    refetchInterval: 5000,
+    refetchInterval: 30000,
   });
 
   const { data: usage } = useQuery<ClaudeUsage>({
@@ -128,25 +97,21 @@ export default function DiagnosticsBar() {
                 <span className="text-slate-600">|</span>
               </>
             )}
-            {/* Session usage */}
             <span
               className="flex items-center gap-1"
-              title={`Session: ${formatTokens(usage.today.tokens)} / ${formatTokens(usage.today.limit)} tokens\n${usage.today.messages} messages\nResets in ${getSessionResetTime()}`}
+              title={`Daily: ${formatTokens(usage.session.tokens)} / ${formatTokens(usage.session.limit)} tokens\n${usage.session.messages} messages\nFrom stats-cache (updated at session end)`}
             >
               <Zap size={11} />
-              Session:
-              <span className={usageColor(usage.today.percent)}>{usage.today.percent}% used</span>
-              <span className="text-slate-600">· resets {getSessionResetTime()}</span>
+              Daily:
+              <span className={usageColor(usage.session.percent)}>~{usage.session.percent}%</span>
             </span>
             <span className="text-slate-600">|</span>
-            {/* Weekly usage */}
             <span
               className="flex items-center gap-1"
-              title={`Weekly: ${formatTokens(usage.week.tokens)} / ${formatTokens(usage.week.limit)} tokens\nResets ${getWeeklyResetTime()}`}
+              title={`Weekly: ${formatTokens(usage.week.tokens)} / ${formatTokens(usage.week.limit)} tokens`}
             >
               Weekly:
-              <span className={usageColor(usage.week.percent)}>{usage.week.percent}% used</span>
-              <span className="text-slate-600">· resets {getWeeklyResetTime()}</span>
+              <span className={usageColor(usage.week.percent)}>~{usage.week.percent}%</span>
             </span>
           </>
         )}

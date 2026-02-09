@@ -235,6 +235,15 @@ export const serverApi = {
   getSystemMetrics: () => apiGet('/system/metrics'),
   getClaudeUsage: () => apiGet('/system/claude-usage'),
 
+  // Skills
+  listSkills: () => apiGet('/skills'),
+  getSkill: (id: string) => apiGet(`/skills/${encodeURIComponent(id)}`),
+  createSkill: (skill: any) => apiPost('/skills', skill),
+  updateSkill: (id: string, updates: any) => apiPut(`/skills/${encodeURIComponent(id)}`, updates),
+  deleteSkill: (id: string) => apiDelete(`/skills/${encodeURIComponent(id)}`),
+  copySkillToWindows: (id: string) => apiPost(`/skills/${encodeURIComponent(id)}/copy-windows`),
+  copySkillToWsl: (id: string) => apiPost(`/skills/${encodeURIComponent(id)}/copy-wsl`),
+
   // Terminals
   listTerminals: () => apiGet('/terminals'),
   launchTerminal: (config: any) => apiPost('/terminals', config),

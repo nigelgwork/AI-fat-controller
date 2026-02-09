@@ -28,7 +28,7 @@ export default function Tasks() {
   const { data: tasks, isLoading } = useQuery({
     queryKey: ['tasks'],
     queryFn: () => api.listTasks(),
-    refetchInterval: 10000,
+    refetchInterval: 30000,
   });
 
   const { data: projects } = useQuery({

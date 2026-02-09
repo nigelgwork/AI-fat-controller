@@ -29,7 +29,7 @@ export default function ActiveSessions({ showHistory = false, maxHistoryItems = 
   const { data: activeSessions } = useQuery({
     queryKey: ['sessions', 'active'],
     queryFn: () => api.getActiveSessions?.() ?? Promise.resolve([]),
-    refetchInterval: 2000, // Poll every 2 seconds
+    refetchInterval: 15000, // Poll every 15 seconds
   });
 
   // Query session history
@@ -37,7 +37,7 @@ export default function ActiveSessions({ showHistory = false, maxHistoryItems = 
     queryKey: ['sessions', 'history', maxHistoryItems],
     queryFn: () => api.getSessionHistory?.(maxHistoryItems) ?? Promise.resolve([]),
     enabled: showHistory,
-    refetchInterval: 10000, // Poll every 10 seconds
+    refetchInterval: 30000, // Poll every 30 seconds
   });
 
   // Cancel session mutation

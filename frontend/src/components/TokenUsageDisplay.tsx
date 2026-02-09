@@ -16,13 +16,13 @@ export default function TokenUsageDisplay({ compact = false }: TokenUsageDisplay
   const { data: controllerState } = useQuery({
     queryKey: ['controller-state'],
     queryFn: () => api.getControllerState(),
-    refetchInterval: 5000,
+    refetchInterval: 30000,
   });
 
   const { data: percentages } = useQuery({
     queryKey: ['usage-percentages'],
     queryFn: () => api.getUsagePercentages(),
-    refetchInterval: 5000,
+    refetchInterval: 30000,
   });
 
   const { data: tokenHistory } = useQuery({

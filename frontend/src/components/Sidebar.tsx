@@ -8,7 +8,6 @@ import {
   Bot,
   Plug,
   Sparkles,
-  Crown,
   Terminal,
   ChevronLeft,
   ChevronRight,
@@ -57,12 +56,6 @@ const sections: NavSection[] = [
     title: 'TERMINALS',
     items: [
       { to: '/terminals', icon: Terminal, label: 'Terminals' },
-    ],
-  },
-  {
-    title: 'CONTROLLER',
-    items: [
-      { to: '/controller', icon: Crown, label: 'Controller' },
     ],
   },
 ];

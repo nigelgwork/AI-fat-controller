@@ -25,7 +25,7 @@ export default function Terminals() {
   const { data: terminals, isLoading } = useQuery<TerminalSession[]>({
     queryKey: ['terminals'],
     queryFn: () => api.listTerminals(),
-    refetchInterval: 3000,
+    refetchInterval: 10000,
   });
 
   const closeMutation = useMutation({

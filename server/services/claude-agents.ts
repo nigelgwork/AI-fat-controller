@@ -169,6 +169,32 @@ async function getWslHomePath(): Promise<string | null> {
   return null;
 }
 
+// Recursively find plugin directories that contain agents/ or commands/ subdirectories
+function findPluginDirs(rootDir: string): { path: string; name: string }[] {
+  const results: { path: string; name: string }[] = [];
+  try {
+    const entries = fs.readdirSync(rootDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const fullPath = path.join(rootDir, entry.name);
+      // If this directory has agents/ or commands/ subdirectories, it's a plugin
+      const hasAgents = fs.existsSync(path.join(fullPath, 'agents'));
+      const hasCommands = fs.existsSync(path.join(fullPath, 'commands'));
+      if (hasAgents || hasCommands) {
+        results.push({ path: fullPath, name: entry.name });
+      }
+      // Recurse into subdirectories (for marketplace structure: marketplaces/*/plugins/*)
+      if (['marketplaces', 'plugins', 'external_plugins'].includes(entry.name) ||
+          fullPath.includes('marketplaces')) {
+        results.push(...findPluginDirs(fullPath));
+      }
+    }
+  } catch {
+    // Directory doesn't exist or can't be read
+  }
+  return results;
+}
+
 // Get all directories that may contain agent definitions
 function getAgentSourceDirs(): { path: string; name: string; isCustom: boolean }[] {
   const homeDir = getHomeDir();
@@ -186,23 +212,17 @@ function getAgentSourceDirs(): { path: string; name: string; isCustom: boolean }
     dirs.push({ path: commandsDir, name: 'commands', isCustom: true });
   }
 
-  // Check ~/.claude/plugins directory (plugin subdirectories)
+  // Recursively scan ~/.claude/plugins for plugin directories with agents/commands
   const pluginsRoot = path.join(homeDir, '.claude', 'plugins');
-  try {
-    if (fs.existsSync(pluginsRoot)) {
-      const entries = fs.readdirSync(pluginsRoot, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isDirectory()) {
-          dirs.push({
-            path: path.join(pluginsRoot, entry.name),
-            name: entry.name,
-            isCustom: entry.name === 'custom-agents'
-          });
-        }
-      }
+  if (fs.existsSync(pluginsRoot)) {
+    const pluginDirs = findPluginDirs(pluginsRoot);
+    for (const pluginDir of pluginDirs) {
+      dirs.push({
+        path: pluginDir.path,
+        name: pluginDir.name,
+        isCustom: pluginDir.name === 'custom-agents',
+      });
     }
-  } catch {
-    // Plugins directory doesn't exist yet
   }
 
   // Custom agents directory (inside plugins)
@@ -214,48 +234,64 @@ function getAgentSourceDirs(): { path: string; name: string; isCustom: boolean }
   return dirs;
 }
 
-// Get agent source directories including WSL (async version)
+// Get Windows home path from WSL (when running in WSL)
+async function getWindowsHomePath(): Promise<string | null> {
+  // Check if we're running in WSL (Linux with Microsoft kernel)
+  try {
+    const versionInfo = fs.readFileSync('/proc/version', 'utf-8');
+    if (!versionInfo.toLowerCase().includes('microsoft')) return null;
+    const { stdout } = await execAsync('cmd.exe /c "echo %USERPROFILE%" 2>/dev/null', { timeout: 5000 });
+    const winPath = stdout.trim();
+    if (winPath && winPath !== '%USERPROFILE%') {
+      const { stdout: wslPath } = await execAsync(`wslpath "${winPath}"`, { timeout: 5000 });
+      return wslPath.trim();
+    }
+  } catch {
+    // cmd.exe not available or WSL interop disabled
+  }
+  return null;
+}
+
+// Get agent source directories including cross-environment paths (async version)
 async function getAgentSourceDirsAsync(): Promise<{ path: string; name: string; isCustom: boolean }[]> {
   const dirs = getAgentSourceDirs();
 
-  // Also check WSL paths on Windows
+  // Check cross-environment paths
+  let crossEnvHome: string | null = null;
+  const envLabel = process.platform === 'win32' ? 'WSL' : 'Windows';
+
   if (process.platform === 'win32') {
-    try {
-      const wslHome = await getWslHomePath();
-      if (wslHome) {
-        // Check WSL agents directory
-        const wslAgentsDir = path.join(wslHome, '.claude', 'agents');
-        if (fs.existsSync(wslAgentsDir)) {
-          dirs.push({ path: wslAgentsDir, name: 'agents (WSL)', isCustom: false });
-        }
+    crossEnvHome = await getWslHomePath();
+  } else {
+    crossEnvHome = await getWindowsHomePath();
+  }
 
-        // Check WSL commands directory
-        const wslCommandsDir = path.join(wslHome, '.claude', 'commands');
-        if (fs.existsSync(wslCommandsDir)) {
-          dirs.push({ path: wslCommandsDir, name: 'commands (WSL)', isCustom: true });
-        }
+  if (crossEnvHome) {
+    const crossClaudeDir = path.join(crossEnvHome, '.claude');
 
-        // Check WSL plugins directory
-        const wslPluginsRoot = path.join(wslHome, '.claude', 'plugins');
-        try {
-          if (fs.existsSync(wslPluginsRoot)) {
-            const entries = fs.readdirSync(wslPluginsRoot, { withFileTypes: true });
-            for (const entry of entries) {
-              if (entry.isDirectory()) {
-                dirs.push({
-                  path: path.join(wslPluginsRoot, entry.name),
-                  name: `${entry.name} (WSL)`,
-                  isCustom: entry.name === 'custom-agents'
-                });
-              }
-            }
-          }
-        } catch {
-          // Ignore
-        }
+    // Check agents directory
+    const crossAgentsDir = path.join(crossClaudeDir, 'agents');
+    if (fs.existsSync(crossAgentsDir)) {
+      dirs.push({ path: crossAgentsDir, name: `agents (${envLabel})`, isCustom: false });
+    }
+
+    // Check commands directory
+    const crossCommandsDir = path.join(crossClaudeDir, 'commands');
+    if (fs.existsSync(crossCommandsDir)) {
+      dirs.push({ path: crossCommandsDir, name: `commands (${envLabel})`, isCustom: true });
+    }
+
+    // Recursively scan plugins
+    const crossPluginsRoot = path.join(crossClaudeDir, 'plugins');
+    if (fs.existsSync(crossPluginsRoot)) {
+      const pluginDirs = findPluginDirs(crossPluginsRoot);
+      for (const pluginDir of pluginDirs) {
+        dirs.push({
+          path: pluginDir.path,
+          name: `${pluginDir.name} (${envLabel})`,
+          isCustom: pluginDir.name === 'custom-agents',
+        });
       }
-    } catch {
-      // WSL not available
     }
   }
 

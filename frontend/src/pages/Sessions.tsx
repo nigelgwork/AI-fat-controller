@@ -27,7 +27,7 @@ export default function Sessions() {
   const { data: sessions, isLoading, refetch } = useQuery({
     queryKey: ['claude-sessions'],
     queryFn: () => api.getClaudeSessions() as Promise<ClaudeSession[]>,
-    refetchInterval: 5000,
+    refetchInterval: 30000,
   });
 
   const runningSessions = sessions?.filter(s => s.status === 'running') || [];

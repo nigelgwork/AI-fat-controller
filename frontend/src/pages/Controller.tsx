@@ -72,28 +72,28 @@ export default function Controller() {
   const { data: controllerState, isLoading: stateLoading } = useQuery({
     queryKey: ['controller-state'],
     queryFn: () => api.getControllerState(),
-    refetchInterval: 2000,
+    refetchInterval: 15000,
   });
 
   // Fetch approval queue
   const { data: approvalQueue = [] } = useQuery({
     queryKey: ['approval-queue'],
     queryFn: () => api.getApprovalQueue(),
-    refetchInterval: 2000,
+    refetchInterval: 15000,
   });
 
   // Fetch action logs
   const { data: actionLogs = [] } = useQuery({
     queryKey: ['action-logs'],
     queryFn: () => api.getActionLogs(50),
-    refetchInterval: 5000,
+    refetchInterval: 30000,
   });
 
   // Fetch conversation sessions
   const { data: conversationSessions = [] } = useQuery({
     queryKey: ['conversation-sessions'],
     queryFn: () => api.listConversationSessions(),
-    refetchInterval: 10000,
+    refetchInterval: 30000,
   });
 
   // Mutations

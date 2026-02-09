@@ -58,7 +58,6 @@ describe('Layout Component', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Overview')).toBeInTheDocument();
-      expect(screen.getByText('Controller')).toBeInTheDocument();
       expect(screen.getByText('Projects')).toBeInTheDocument();
       expect(screen.getByText('Sessions')).toBeInTheDocument();
       expect(screen.getByText('Agents')).toBeInTheDocument();
@@ -71,12 +70,10 @@ describe('Layout Component', () => {
 
     await waitFor(() => {
       const overviewLink = screen.getByTitle('Overview');
-      const controllerLink = screen.getByTitle('Controller');
       const projectsLink = screen.getByTitle('Projects');
       const settingsLink = screen.getByTitle('Settings');
 
       expect(overviewLink).toHaveAttribute('href', '/');
-      expect(controllerLink).toHaveAttribute('href', '/controller');
       expect(projectsLink).toHaveAttribute('href', '/projects');
       expect(settingsLink).toHaveAttribute('href', '/settings');
     });
@@ -107,7 +104,7 @@ describe('Layout Component', () => {
       expect(screen.getByText('DASHBOARD')).toBeInTheDocument();
       expect(screen.getByText('PROJECTS')).toBeInTheDocument();
       expect(screen.getByText('RESOURCES')).toBeInTheDocument();
-      expect(screen.getByText('CONTROLLER')).toBeInTheDocument();
+      expect(screen.getByText('TERMINALS')).toBeInTheDocument();
     });
   });
 });
