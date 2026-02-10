@@ -92,9 +92,11 @@ async function main() {
   // In Docker: __dirname is /app/dist-server/server, frontend is at /app/dist
   const distPath = path.join(__dirname, '../../dist');
   app.use(express.static(distPath));
-  app.get('*', (req, res) => {
+  app.get('*', (req, res, next) => {
     if (!req.path.startsWith('/api/') && !req.path.startsWith('/ws')) {
       res.sendFile(path.join(distPath, 'index.html'));
+    } else {
+      next();
     }
   });
 
