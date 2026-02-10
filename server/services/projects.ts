@@ -17,6 +17,13 @@ const log = createLogger('Projects');
 const execAsync = promisify(exec);
 const fsPromises = fs.promises;
 
+// Caches for expensive operations
+let systemStatusCache: { data: any; timestamp: number } | null = null;
+const SYSTEM_STATUS_CACHE_TTL = 30_000; // 30 seconds
+
+let gitReposCache: { data: Project[]; timestamp: number } | null = null;
+const GIT_REPOS_CACHE_TTL = 300_000; // 5 minutes — repos rarely change
+
 // Re-export types
 export type { Project } from '../db/repositories/projects-repo';
 import type { Project } from '../db/repositories/projects-repo';
@@ -305,6 +312,11 @@ async function getSessionsFromHistory(activeThresholdMs: number = 2 * 60 * 1000)
  * Adapted for Docker/Linux environment (removed WSL-specific logic)
  */
 export async function discoverGitRepos(): Promise<Project[]> {
+  // Return cached results if fresh
+  if (gitReposCache && (Date.now() - gitReposCache.timestamp) < GIT_REPOS_CACHE_TTL) {
+    return gitReposCache.data;
+  }
+
   const discovered: Project[] = [];
   const homeDir = getHomeDir();
 
@@ -353,6 +365,7 @@ export async function discoverGitRepos(): Promise<Project[]> {
     }
   }
 
+  gitReposCache = { data: discovered, timestamp: Date.now() };
   return discovered;
 }
 
@@ -494,6 +507,11 @@ export async function getSystemStatus(): Promise<{
   sessions: ClaudeSession[];
   discovered: Project[];
 }> {
+  // Return cached results if fresh
+  if (systemStatusCache && (Date.now() - systemStatusCache.timestamp) < SYSTEM_STATUS_CACHE_TTL) {
+    return systemStatusCache.data;
+  }
+
   const [projects, sessions, discovered] = await Promise.all([
     refreshProjects(),
     detectClaudeSessions(),
@@ -504,9 +522,12 @@ export async function getSystemStatus(): Promise<{
   const existingPaths = new Set(projects.map(p => p.path));
   const newDiscovered = discovered.filter(d => !existingPaths.has(d.path));
 
-  return {
+  const result = {
     projects,
     sessions,
     discovered: newDiscovered,
   };
+
+  systemStatusCache = { data: result, timestamp: Date.now() };
+  return result;
 }

@@ -6,6 +6,9 @@ import { createLogger } from '../utils/logger';
 const log = createLogger('ModeDetection');
 const execAsync = promisify(exec);
 
+// Cache mode detection — environment doesn't change at runtime
+let cachedModeStatus: ModeStatus | null = null;
+
 export interface ModeStatus {
   current: 'linux' | 'wsl' | 'windows-interop';
   linux: {
@@ -36,6 +39,9 @@ function detectWSL(): { detected: boolean; version?: string } {
 }
 
 export async function detectModes(): Promise<ModeStatus> {
+  // Return cached result — environment doesn't change while server is running
+  if (cachedModeStatus) return cachedModeStatus;
+
   const wslInfo = detectWSL();
   const isDocker = fs.existsSync('/.dockerenv');
 
@@ -84,6 +90,7 @@ export async function detectModes(): Promise<ModeStatus> {
     log.info('Running in native Linux');
   }
 
+  cachedModeStatus = status;
   return status;
 }
 
