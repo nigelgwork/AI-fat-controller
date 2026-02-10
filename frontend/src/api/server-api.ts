@@ -42,6 +42,7 @@ export const serverApi = {
   refreshProjects: () => apiPost('/projects/refresh'),
   discoverProjects: () => apiGet('/projects/discover'),
   browseForProject: () => Promise.resolve(null),
+  browseFilesystem: (path?: string) => apiGet('/filesystem/browse', path ? { path } : undefined),
 
   // Git clone
   cloneFromGit: (options: any) => apiPost('/projects/clone', options),

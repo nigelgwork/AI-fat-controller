@@ -29,6 +29,7 @@ import executionSessionsRoutes from './routes/execution-sessions';
 import systemRoutes from './routes/system';
 import terminalsRoutes from './routes/terminals';
 import skillsRoutes from './routes/skills';
+import filesystemRoutes from './routes/filesystem';
 
 const log = createLogger('Server');
 const PORT = parseInt(process.env.PORT || '3001', 10);
@@ -87,6 +88,7 @@ async function main() {
   app.use('/api/system', systemRoutes);
   app.use('/api/terminals', terminalsRoutes);
   app.use('/api/skills', skillsRoutes);
+  app.use('/api/filesystem', filesystemRoutes);
 
   // Serve frontend in production
   // In Docker: __dirname is /app/dist-server/server, frontend is at /app/dist

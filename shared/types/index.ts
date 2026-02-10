@@ -583,3 +583,22 @@ export interface NewProjectSpec {
   features: string[];
   structure?: Record<string, string>;
 }
+
+// Folder browser types
+export interface FolderEntry {
+  name: string;
+  path: string;
+}
+
+export interface FolderRoot {
+  label: string;
+  path: string;
+  type: 'home' | 'drive' | 'project';
+}
+
+export interface FolderListResult {
+  currentPath: string;
+  parentPath: string | null;
+  entries: FolderEntry[];
+  roots: FolderRoot[];
+}

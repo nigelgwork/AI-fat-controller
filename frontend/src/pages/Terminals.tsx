@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api';
 import {
-  Terminal, Plus, X, Send, Play, Square, FolderGit,
+  Terminal, Plus, X, Send, Play, Square, FolderGit, FolderOpen,
   ChevronDown, ChevronRight, Shield, ShieldOff,
 } from 'lucide-react';
 import RefreshButton from '../components/RefreshButton';
+import FolderBrowser from '../components/FolderBrowser';
 
 interface TerminalSession {
   id: string;
@@ -289,6 +290,7 @@ function TerminalLauncher({ onClose, onLaunched }: TerminalLauncherProps) {
   const [skipPermissions, setSkipPermissions] = useState(false);
   const [resumeId, setResumeId] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showFolderBrowser, setShowFolderBrowser] = useState(false);
 
   const { data: projects } = useQuery({
     queryKey: ['projects'],
@@ -335,6 +337,13 @@ function TerminalLauncher({ onClose, onLaunched }: TerminalLauncherProps) {
             placeholder="Leave empty for server root"
             className="flex-1 px-3 py-2 bg-slate-900 border border-slate-600 rounded text-white placeholder-slate-500 text-sm focus:outline-none focus:border-cyan-500"
           />
+          <button
+            onClick={() => setShowFolderBrowser(true)}
+            className="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-slate-300 transition-colors"
+            title="Browse folders"
+          >
+            <FolderOpen size={16} />
+          </button>
         </div>
         {projects && (projects as any[]).length > 0 && (
           <div className="flex flex-wrap gap-2 mt-2">
@@ -422,6 +431,17 @@ function TerminalLauncher({ onClose, onLaunched }: TerminalLauncherProps) {
         <p className="text-sm text-red-400">
           Failed to launch: {(launchMutation.error as Error).message}
         </p>
+      )}
+
+      {showFolderBrowser && (
+        <FolderBrowser
+          initialPath={workingDir || undefined}
+          onSelect={(path) => {
+            setWorkingDir(path);
+            setShowFolderBrowser(false);
+          }}
+          onClose={() => setShowFolderBrowser(false)}
+        />
       )}
     </div>
   );

@@ -61,6 +61,12 @@ const mockApi = {
   refreshProjects: vi.fn().mockResolvedValue([]),
   discoverProjects: vi.fn().mockResolvedValue([]),
   browseForProject: vi.fn().mockResolvedValue(null),
+  browseFilesystem: vi.fn().mockResolvedValue({
+    currentPath: '/home/user',
+    parentPath: '/',
+    entries: [],
+    roots: [{ label: 'Home', path: '/home/user', type: 'home' }],
+  }),
 
   // Tasks
   listTasks: vi.fn().mockResolvedValue([]),
