@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api';
 import {
-  Plug, RefreshCw, Plus, Trash2, Edit2, Save, X, Power, PowerOff,
+  Plug, Plus, Trash2, Edit2, Save, X, Power, PowerOff,
   ChevronRight, Terminal, Monitor, AlertCircle,
 } from 'lucide-react';
+import RefreshButton from '../components/RefreshButton';
 
 interface MCPServerConfig {
   name: string;
@@ -39,7 +40,7 @@ export default function MCP() {
   const [isEditing, setIsEditing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
-  const { data: configs, isLoading } = useQuery({
+  const { data: configs, isLoading, isFetching, dataUpdatedAt, refetch } = useQuery({
     queryKey: ['mcp-configs'],
     queryFn: () => api.getMcpConfigs() as Promise<MCPServerConfig[]>,
   });
@@ -107,14 +108,8 @@ export default function MCP() {
             Manage Model Context Protocol server configurations
           </p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['mcp-configs'] })}
-            className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors"
-          >
-            <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
+        <div className="flex items-center gap-2">
+          <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} dataUpdatedAt={dataUpdatedAt} />
           <button
             onClick={handleCreateNew}
             className="flex items-center gap-2 px-3 py-2 bg-cyan-500 hover:bg-cyan-600 rounded-lg text-sm font-medium transition-colors"

@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api';
 import {
-  Bot, RefreshCw, Plus, Trash2, Edit2, Save, X, ChevronRight, Package,
+  Bot, Plus, Trash2, Edit2, Save, X, ChevronRight, Package,
   FileText, Wand2, Code, Search, Hammer, Monitor, Terminal
 } from 'lucide-react';
 import type { ClaudeAgent } from '@shared/types';
 import CollapsibleHelp from '../components/CollapsibleHelp';
+import RefreshButton from '../components/RefreshButton';
 
 const AGENT_COLORS = ['blue', 'green', 'yellow', 'magenta', 'red', 'cyan'] as const;
 const AGENT_MODELS = ['inherit', 'sonnet', 'opus', 'haiku'] as const;
@@ -22,7 +23,7 @@ export default function Agents() {
   const [isCreating, setIsCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { data: agents, isLoading: isLoadingAgents, refetch: refetchAgents } = useQuery({
+  const { data: agents, isLoading: isLoadingAgents, isFetching: isFetchingAgents, dataUpdatedAt: agentsUpdatedAt, refetch: refetchAgents } = useQuery({
     queryKey: ['claude-agents'],
     queryFn: () => api.listAgents() as Promise<ClaudeAgent[]>,
   });
@@ -111,14 +112,8 @@ export default function Agents() {
             Manage Claude Code agent types and system prompts
           </p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => refetchAgents()}
-            className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors"
-          >
-            <RefreshCw size={16} className={isLoadingAgents ? 'animate-spin' : ''} />
-            Refresh
-          </button>
+        <div className="flex items-center gap-2">
+          <RefreshButton onRefresh={() => refetchAgents()} isFetching={isFetchingAgents} dataUpdatedAt={agentsUpdatedAt} />
           <button
             onClick={handleCreateNew}
             className="flex items-center gap-2 px-3 py-2 bg-cyan-500 hover:bg-cyan-600 rounded-lg text-sm font-medium transition-colors"

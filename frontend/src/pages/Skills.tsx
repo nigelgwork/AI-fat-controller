@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api';
 import {
-  Sparkles, RefreshCw, Plus, Trash2, Edit2, Save, X, ChevronRight,
+  Sparkles, Plus, Trash2, Edit2, Save, X, ChevronRight,
   Package, Search, Monitor, Terminal,
 } from 'lucide-react';
+import RefreshButton from '../components/RefreshButton';
 
 interface ClaudeSkill {
   id: string;
@@ -23,7 +24,7 @@ export default function Skills() {
   const [isCreating, setIsCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { data: skills, isLoading, refetch } = useQuery({
+  const { data: skills, isLoading, isFetching, dataUpdatedAt, refetch } = useQuery({
     queryKey: ['claude-skills'],
     queryFn: () => api.listSkills() as Promise<ClaudeSkill[]>,
   });
@@ -111,14 +112,8 @@ export default function Skills() {
             Manage Claude Code slash commands and skills
           </p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => refetch()}
-            className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors"
-          >
-            <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
+        <div className="flex items-center gap-2">
+          <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} dataUpdatedAt={dataUpdatedAt} />
           <button
             onClick={handleCreateNew}
             className="flex items-center gap-2 px-3 py-2 bg-cyan-500 hover:bg-cyan-600 rounded-lg text-sm font-medium transition-colors"

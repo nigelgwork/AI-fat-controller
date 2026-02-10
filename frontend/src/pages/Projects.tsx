@@ -26,6 +26,7 @@ import {
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import CollapsibleHelp from '../components/CollapsibleHelp';
+import RefreshButton from '../components/RefreshButton';
 import type { ProjectBrief, DeepDivePlan, CloneOptions, SetupCommand, CloneProgress, AddProjectFromGitResult } from '@shared/types';
 
 interface Project {
@@ -44,7 +45,7 @@ export default function Projects() {
   const [showDiscover, setShowDiscover] = useState(false);
   const [showCloneDialog, setShowCloneDialog] = useState(false);
 
-  const { data: projects, isLoading, refetch } = useQuery({
+  const { data: projects, isLoading, isFetching, dataUpdatedAt, refetch } = useQuery({
     queryKey: ['projects'],
     queryFn: () => api.listProjects() as Promise<Project[]>,
   });
@@ -86,14 +87,8 @@ export default function Projects() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-white">Projects</h2>
-        <div className="flex gap-2">
-          <button
-            onClick={() => refetch()}
-            className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors"
-          >
-            <RefreshCw size={16} />
-            Refresh
-          </button>
+        <div className="flex items-center gap-2">
+          <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} dataUpdatedAt={dataUpdatedAt} />
           <button
             onClick={handleDiscover}
             className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors"

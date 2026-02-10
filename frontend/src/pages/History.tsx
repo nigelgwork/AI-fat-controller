@@ -3,8 +3,9 @@ import { useState } from 'react';
 import { api } from '@/api';
 import {
   History as HistoryIcon, MessageSquare, FolderGit, Clock,
-  Copy, Check, RefreshCw, Search,
+  Copy, Check, Search,
 } from 'lucide-react';
+import RefreshButton from '../components/RefreshButton';
 import type { ClaudeCodeSession } from '@shared/types';
 
 function formatTimeAgo(isoString: string): string {
@@ -54,7 +55,7 @@ export default function History() {
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const { data: sessions, isLoading, refetch } = useQuery({
+  const { data: sessions, isLoading, isFetching, dataUpdatedAt, refetch } = useQuery({
     queryKey: ['resumable-claude-sessions'],
     queryFn: () => api.getRecentClaudeSessions(50) as Promise<ClaudeCodeSession[]>,
     staleTime: 30000,
@@ -91,14 +92,7 @@ export default function History() {
             Past Claude Code sessions on this machine
           </p>
         </div>
-        <button
-          onClick={() => refetch()}
-          disabled={isLoading}
-          className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors"
-        >
-          <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-          Refresh
-        </button>
+        <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} dataUpdatedAt={dataUpdatedAt} />
       </div>
 
       {/* Search */}

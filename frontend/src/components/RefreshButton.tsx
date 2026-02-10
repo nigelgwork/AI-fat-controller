@@ -21,17 +21,17 @@ function timeAgo(timestamp: number): string {
 
 export default function RefreshButton({ onRefresh, isFetching, dataUpdatedAt, className = '' }: RefreshButtonProps) {
   return (
-    <div className={`flex items-center gap-2 text-xs text-slate-500 ${className}`}>
+    <div className={`flex items-center gap-3 ${className}`}>
       {dataUpdatedAt ? (
-        <span>Updated {timeAgo(dataUpdatedAt)}</span>
+        <span className="text-xs text-slate-500">Updated {timeAgo(dataUpdatedAt)}</span>
       ) : null}
       <button
         onClick={onRefresh}
         disabled={isFetching}
-        className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors disabled:opacity-50"
-        title="Refresh"
+        className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors disabled:opacity-50"
       >
-        <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+        <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
+        Refresh
       </button>
     </div>
   );
