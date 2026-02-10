@@ -4,6 +4,8 @@ class WebSocketClient {
   private ws: WebSocket | null = null;
   private listeners = new Map<string, Set<Callback>>();
   private reconnectTimer: number | null = null;
+  private reconnectDelay = 3000;
+  private readonly MAX_RECONNECT_DELAY = 60000;
   private url: string;
 
   constructor() {
@@ -19,6 +21,7 @@ class WebSocketClient {
 
       this.ws.onopen = () => {
         console.log('[WS] Connected');
+        this.reconnectDelay = 3000; // Reset backoff on successful connection
         if (this.reconnectTimer) {
           clearTimeout(this.reconnectTimer);
           this.reconnectTimer = null;
@@ -42,8 +45,8 @@ class WebSocketClient {
         this.scheduleReconnect();
       };
 
-      this.ws.onerror = (err) => {
-        console.error('[WS] Error:', err);
+      this.ws.onerror = () => {
+        // onclose will fire after onerror, so reconnect happens there
       };
     } catch (err) {
       console.error('[WS] Failed to connect:', err);
@@ -53,10 +56,12 @@ class WebSocketClient {
 
   private scheduleReconnect(): void {
     if (this.reconnectTimer) return;
+    const delay = this.reconnectDelay;
+    this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.MAX_RECONNECT_DELAY);
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
       this.connect();
-    }, 3000);
+    }, delay);
   }
 
   subscribe(channel: string, callback: Callback): () => void {

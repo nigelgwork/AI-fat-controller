@@ -10,6 +10,14 @@ const log = createLogger('ClaudeAgents');
 const fsPromises = fs.promises;
 const execAsync = promisify(exec);
 
+// Cache for expensive operations
+let cachedAgents: ClaudeAgent[] | null = null;
+let agentsCacheTime = 0;
+const AGENTS_CACHE_TTL = 60000; // 1 minute
+
+let cachedCrossEnvHome: string | null | undefined = undefined; // undefined = not yet checked
+let crossEnvHomeChecked = false;
+
 export interface ClaudeAgent {
   id: string;              // plugin:filename (e.g., "custom-agents:code-architect")
   name: string;            // from frontmatter
@@ -256,15 +264,19 @@ async function getWindowsHomePath(): Promise<string | null> {
 async function getAgentSourceDirsAsync(): Promise<{ path: string; name: string; isCustom: boolean }[]> {
   const dirs = getAgentSourceDirs();
 
-  // Check cross-environment paths
-  let crossEnvHome: string | null = null;
+  // Check cross-environment paths (cached to avoid spawning cmd.exe every time)
   const envLabel = process.platform === 'win32' ? 'WSL' : 'Windows';
 
-  if (process.platform === 'win32') {
-    crossEnvHome = await getWslHomePath();
-  } else {
-    crossEnvHome = await getWindowsHomePath();
+  if (!crossEnvHomeChecked) {
+    crossEnvHomeChecked = true;
+    if (process.platform === 'win32') {
+      cachedCrossEnvHome = await getWslHomePath();
+    } else {
+      cachedCrossEnvHome = await getWindowsHomePath();
+    }
   }
+
+  const crossEnvHome = cachedCrossEnvHome ?? null;
 
   if (crossEnvHome) {
     const crossClaudeDir = path.join(crossEnvHome, '.claude');
@@ -334,7 +346,12 @@ async function scanDirForAgents(dirPath: string, sourceName: string, isCustom: b
 }
 
 // List all agents from all sources (commands, plugins, custom, WSL)
-export async function listAgents(): Promise<ClaudeAgent[]> {
+export async function listAgents(skipCache = false): Promise<ClaudeAgent[]> {
+  // Return cached results if fresh enough
+  if (!skipCache && cachedAgents && (Date.now() - agentsCacheTime) < AGENTS_CACHE_TTL) {
+    return cachedAgents;
+  }
+
   const sources = await getAgentSourceDirsAsync();
   const allAgents: ClaudeAgent[] = [];
 
@@ -351,7 +368,15 @@ export async function listAgents(): Promise<ClaudeAgent[]> {
     }
   }
 
-  return Array.from(seen.values());
+  cachedAgents = Array.from(seen.values());
+  agentsCacheTime = Date.now();
+  return cachedAgents;
+}
+
+// Invalidate agent cache (call after create/update/delete)
+export function invalidateAgentCache(): void {
+  cachedAgents = null;
+  agentsCacheTime = 0;
 }
 
 // Get a specific agent by id
@@ -362,6 +387,7 @@ export async function getAgent(id: string): Promise<ClaudeAgent | null> {
 
 // Create a new custom agent
 export async function createAgent(agent: Partial<ClaudeAgent>): Promise<ClaudeAgent> {
+  invalidateAgentCache();
   await ensureCustomPluginDir();
   const agentsDir = getCustomAgentsDir();
 
@@ -394,6 +420,7 @@ export async function createAgent(agent: Partial<ClaudeAgent>): Promise<ClaudeAg
 
 // Update an existing agent
 export async function updateAgent(id: string, updates: Partial<ClaudeAgent>): Promise<ClaudeAgent> {
+  invalidateAgentCache();
   const existing = await getAgent(id);
   if (!existing) {
     throw new Error(`Agent not found: ${id}`);
@@ -416,6 +443,7 @@ export async function updateAgent(id: string, updates: Partial<ClaudeAgent>): Pr
 
 // Delete a custom agent
 export async function deleteAgent(id: string): Promise<void> {
+  invalidateAgentCache();
   const agent = await getAgent(id);
   if (!agent) {
     throw new Error(`Agent not found: ${id}`);
@@ -442,6 +470,7 @@ async function getWslCommandsDir(): Promise<string | null> {
 
 // Copy an agent to Windows
 export async function copyAgentToWindows(id: string): Promise<ClaudeAgent> {
+  invalidateAgentCache();
   const agent = await getAgent(id);
   if (!agent) {
     throw new Error(`Agent not found: ${id}`);
@@ -491,6 +520,7 @@ export async function copyAgentToWindows(id: string): Promise<ClaudeAgent> {
 
 // Copy an agent to WSL
 export async function copyAgentToWsl(id: string): Promise<ClaudeAgent> {
+  invalidateAgentCache();
   const agent = await getAgent(id);
   if (!agent) {
     throw new Error(`Agent not found: ${id}`);

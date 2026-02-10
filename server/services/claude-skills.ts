@@ -10,6 +10,14 @@ const log = createLogger('ClaudeSkills');
 const fsPromises = fs.promises;
 const execAsync = promisify(exec);
 
+// Cache for expensive operations
+let cachedSkills: ClaudeSkill[] | null = null;
+let skillsCacheTime = 0;
+const SKILLS_CACHE_TTL = 60000; // 1 minute
+
+let cachedCrossEnvHome: string | null | undefined = undefined;
+let crossEnvHomeChecked = false;
+
 export interface ClaudeSkill {
   id: string;             // source:filename (e.g., "commands:review-pr")
   name: string;           // from filename or frontmatter
@@ -142,39 +150,43 @@ function getSkillSourceDirs(): { path: string; name: string; isCustom: boolean }
 async function getSkillSourceDirsAsync(): Promise<{ path: string; name: string; isCustom: boolean }[]> {
   const dirs = getSkillSourceDirs();
 
-  // Check cross-environment (WSL <-> Windows)
-  let crossEnvHome: string | null = null;
+  // Check cross-environment (WSL <-> Windows) - cached to avoid spawning cmd.exe
   const envLabel = process.platform === 'win32' ? 'WSL' : 'Windows';
 
-  if (process.platform === 'win32') {
-    try {
-      const { stdout } = await execAsync('wsl.exe -e bash -c "echo $HOME"', { timeout: 5000 });
-      const wslHome = stdout.trim();
-      if (wslHome) {
-        const { stdout: distroOut } = await execAsync('wsl.exe -l -q', { timeout: 5000 });
-        const distro = distroOut.trim().split('\n')[0].replace(/\0/g, '').trim();
-        if (distro) {
-          crossEnvHome = `\\\\wsl$\\${distro}${wslHome.replace(/\//g, '\\')}`;
+  if (!crossEnvHomeChecked) {
+    crossEnvHomeChecked = true;
+    if (process.platform === 'win32') {
+      try {
+        const { stdout } = await execAsync('wsl.exe -e bash -c "echo $HOME"', { timeout: 5000 });
+        const wslHome = stdout.trim();
+        if (wslHome) {
+          const { stdout: distroOut } = await execAsync('wsl.exe -l -q', { timeout: 5000 });
+          const distro = distroOut.trim().split('\n')[0].replace(/\0/g, '').trim();
+          if (distro) {
+            cachedCrossEnvHome = `\\\\wsl$\\${distro}${wslHome.replace(/\//g, '\\')}`;
+          }
         }
+      } catch {
+        cachedCrossEnvHome = null;
       }
-    } catch {
-      // WSL not available
-    }
-  } else {
-    try {
-      const versionInfo = fs.readFileSync('/proc/version', 'utf-8');
-      if (versionInfo.toLowerCase().includes('microsoft')) {
-        const { stdout } = await execAsync('cmd.exe /c "echo %USERPROFILE%" 2>/dev/null', { timeout: 5000 });
-        const winPath = stdout.trim();
-        if (winPath && winPath !== '%USERPROFILE%') {
-          const { stdout: wslPath } = await execAsync(`wslpath "${winPath}"`, { timeout: 5000 });
-          crossEnvHome = wslPath.trim();
+    } else {
+      try {
+        const versionInfo = fs.readFileSync('/proc/version', 'utf-8');
+        if (versionInfo.toLowerCase().includes('microsoft')) {
+          const { stdout } = await execAsync('cmd.exe /c "echo %USERPROFILE%" 2>/dev/null', { timeout: 5000 });
+          const winPath = stdout.trim();
+          if (winPath && winPath !== '%USERPROFILE%') {
+            const { stdout: wslPath } = await execAsync(`wslpath "${winPath}"`, { timeout: 5000 });
+            cachedCrossEnvHome = wslPath.trim();
+          }
         }
+      } catch {
+        cachedCrossEnvHome = null;
       }
-    } catch {
-      // Not WSL or cmd.exe not available
     }
   }
+
+  const crossEnvHome = cachedCrossEnvHome ?? null;
 
   if (crossEnvHome) {
     const crossCommandsDir = path.join(crossEnvHome, '.claude', 'commands');
@@ -217,7 +229,12 @@ async function scanDirForSkills(dirPath: string, sourceName: string, isCustom: b
 }
 
 // List all skills from all sources
-export async function listSkills(): Promise<ClaudeSkill[]> {
+export async function listSkills(skipCache = false): Promise<ClaudeSkill[]> {
+  // Return cached results if fresh enough
+  if (!skipCache && cachedSkills && (Date.now() - skillsCacheTime) < SKILLS_CACHE_TTL) {
+    return cachedSkills;
+  }
+
   const sources = await getSkillSourceDirsAsync();
   const allSkills: ClaudeSkill[] = [];
 
@@ -234,7 +251,15 @@ export async function listSkills(): Promise<ClaudeSkill[]> {
     }
   }
 
-  return Array.from(seen.values());
+  cachedSkills = Array.from(seen.values());
+  skillsCacheTime = Date.now();
+  return cachedSkills;
+}
+
+// Invalidate skill cache (call after create/update/delete)
+export function invalidateSkillCache(): void {
+  cachedSkills = null;
+  skillsCacheTime = 0;
 }
 
 // Get a specific skill by id
@@ -253,6 +278,7 @@ async function ensureCommandsDir(): Promise<string> {
 
 // Create a new custom skill
 export async function createSkill(skill: Partial<ClaudeSkill>): Promise<ClaudeSkill> {
+  invalidateSkillCache();
   const commandsDir = await ensureCommandsDir();
 
   const safeName = (skill.name || 'new-skill')
@@ -280,6 +306,7 @@ export async function createSkill(skill: Partial<ClaudeSkill>): Promise<ClaudeSk
 
 // Update an existing skill
 export async function updateSkill(id: string, updates: Partial<ClaudeSkill>): Promise<ClaudeSkill> {
+  invalidateSkillCache();
   const existing = await getSkill(id);
   if (!existing) throw new Error(`Skill not found: ${id}`);
 
@@ -294,6 +321,7 @@ export async function updateSkill(id: string, updates: Partial<ClaudeSkill>): Pr
 
 // Delete a custom skill
 export async function deleteSkill(id: string): Promise<void> {
+  invalidateSkillCache();
   const skill = await getSkill(id);
   if (!skill) throw new Error(`Skill not found: ${id}`);
   if (!skill.isCustom) throw new Error('Cannot delete non-custom skills');
@@ -302,6 +330,7 @@ export async function deleteSkill(id: string): Promise<void> {
 
 // Copy a skill to the Windows commands directory
 export async function copySkillToWindows(id: string): Promise<ClaudeSkill> {
+  invalidateSkillCache();
   const skill = await getSkill(id);
   if (!skill) throw new Error(`Skill not found: ${id}`);
 
@@ -329,6 +358,7 @@ export async function copySkillToWindows(id: string): Promise<ClaudeSkill> {
 
 // Copy a skill to WSL commands directory
 export async function copySkillToWsl(id: string): Promise<ClaudeSkill> {
+  invalidateSkillCache();
   const skill = await getSkill(id);
   if (!skill) throw new Error(`Skill not found: ${id}`);
 

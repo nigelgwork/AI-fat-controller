@@ -18,7 +18,7 @@ import settingsRoutes from './routes/settings';
 import projectsRoutes from './routes/projects';
 import agentsRoutes from './routes/agents';
 import tasksRoutes from './routes/tasks';
-import controllerRoutes from './routes/controller';
+// controller route removed — Controller page was deleted, service had expensive 5s processing loop
 import conversationsRoutes from './routes/conversations';
 import claudeSessionsRoutes from './routes/claude-sessions';
 import ntfyRoutes from './routes/ntfy';
@@ -76,7 +76,7 @@ async function main() {
   app.use('/api/projects', projectsRoutes);
   app.use('/api/agents', agentsRoutes);
   app.use('/api/tasks', tasksRoutes);
-  app.use('/api/controller', controllerRoutes);
+  // /api/controller removed — Controller feature was removed
   app.use('/api/conversations', conversationsRoutes);
   app.use('/api/claude-sessions', claudeSessionsRoutes);
   app.use('/api/ntfy', ntfyRoutes);

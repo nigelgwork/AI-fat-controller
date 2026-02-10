@@ -6,6 +6,11 @@ import { createLogger } from '../utils/logger';
 const log = createLogger('ClaudeSessions');
 const fsPromises = fs.promises;
 
+// Cache for expensive directory scan
+let cachedSessions: ClaudeCodeSession[] | null = null;
+let sessionsCacheTime = 0;
+const SESSIONS_CACHE_TTL = 60000; // 1 minute
+
 export interface ClaudeCodeSession {
   sessionId: string;
   projectPath: string;
@@ -123,6 +128,11 @@ function decodeProjectPath(encodedName: string): string {
  * List all Claude Code sessions
  */
 export async function listClaudeCodeSessions(projectPath?: string): Promise<ClaudeCodeSession[]> {
+  // Return cached results for unfiltered requests
+  if (!projectPath && cachedSessions && (Date.now() - sessionsCacheTime) < SESSIONS_CACHE_TTL) {
+    return cachedSessions;
+  }
+
   const sessions: ClaudeCodeSession[] = [];
   const projectsDir = getClaudeProjectsDir();
 
@@ -204,6 +214,12 @@ export async function listClaudeCodeSessions(projectPath?: string): Promise<Clau
   sessions.sort((a, b) =>
     new Date(b.lastModifiedAt).getTime() - new Date(a.lastModifiedAt).getTime()
   );
+
+  // Cache unfiltered results
+  if (!projectPath) {
+    cachedSessions = sessions;
+    sessionsCacheTime = Date.now();
+  }
 
   return sessions;
 }
