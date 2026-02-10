@@ -47,7 +47,6 @@ export default function MCP() {
   const { data: connected } = useQuery({
     queryKey: ['mcp-connected'],
     queryFn: () => api.getConnectedMcpServers() as Promise<ConnectedServer[]>,
-    refetchInterval: 30000,
   });
 
   const { data: defaults } = useQuery({

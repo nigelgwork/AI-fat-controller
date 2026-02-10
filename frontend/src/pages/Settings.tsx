@@ -767,7 +767,6 @@ function UsageLimitsCard() {
   const { data: percentages } = useQuery({
     queryKey: ['usage-percentages'],
     queryFn: () => api.getUsagePercentages(),
-    refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   const [localConfig, setLocalConfig] = useState<Partial<UsageLimitConfig>>({});

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import type { Task, TaskStatus, TaskPriority, CreateTaskInput, UpdateTaskInput, Project } from '@shared/types';
 import ActiveSessions from '../components/ActiveSessions';
+import RefreshButton from '../components/RefreshButton';
 
 export default function Tasks() {
   const queryClient = useQueryClient();
@@ -25,10 +26,9 @@ export default function Tasks() {
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const { data: tasks, isLoading } = useQuery({
+  const { data: tasks, isLoading, dataUpdatedAt, isFetching, refetch } = useQuery({
     queryKey: ['tasks'],
     queryFn: () => api.listTasks(),
-    refetchInterval: 30000,
   });
 
   const { data: projects } = useQuery({
@@ -135,13 +135,16 @@ export default function Tasks() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-white">Tasks</h2>
-        <button
-          onClick={() => setIsAddingTask(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add Task
-        </button>
+        <div className="flex items-center gap-3">
+          <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} dataUpdatedAt={dataUpdatedAt} />
+          <button
+            onClick={() => setIsAddingTask(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Task
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

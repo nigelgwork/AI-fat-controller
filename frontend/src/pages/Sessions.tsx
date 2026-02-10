@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api';
 import {
-  Terminal, RefreshCw, Activity, FolderGit, Clock, Cpu,
+  Terminal, Activity, FolderGit, Clock, Cpu,
 } from 'lucide-react';
+import RefreshButton from '../components/RefreshButton';
 import type { ClaudeSession } from '@shared/types';
 
 function formatDuration(isoString: string): string {
@@ -24,10 +25,9 @@ function formatDuration(isoString: string): string {
 }
 
 export default function Sessions() {
-  const { data: sessions, isLoading, refetch } = useQuery({
+  const { data: sessions, isLoading, refetch, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['claude-sessions'],
     queryFn: () => api.getClaudeSessions() as Promise<ClaudeSession[]>,
-    refetchInterval: 30000,
   });
 
   const runningSessions = sessions?.filter(s => s.status === 'running') || [];
@@ -47,14 +47,7 @@ export default function Sessions() {
             Running Claude Code instances on this machine
           </p>
         </div>
-        <button
-          onClick={() => refetch()}
-          disabled={isLoading}
-          className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors"
-        >
-          <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-          Refresh
-        </button>
+        <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} dataUpdatedAt={dataUpdatedAt} />
       </div>
 
       <div className="bg-slate-800 rounded-lg border border-slate-700">

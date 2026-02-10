@@ -112,29 +112,26 @@ export default function DiagnosticsBar() {
             )}
             <span
               className="flex items-center gap-1"
-              title={`5-hour session limit${usage.session.resetsAt ? `\nResets in ${formatResetTime(usage.session.resetsAt)}` : ''}${!isLive ? '\nEstimated from stats-cache' : ''}`}
+              title={`5-hour rolling session limit${!isLive ? ' (estimated)' : ''}`}
             >
               <Zap size={11} />
               Session:
               <span className={usageColor(usage.session.percent)}>{isLive ? '' : '~'}{usage.session.percent}%</span>
+              {usage.session.resetsAt && (
+                <span className="text-slate-600 ml-0.5">({formatResetTime(usage.session.resetsAt)})</span>
+              )}
             </span>
             <span className="text-slate-600">|</span>
             <span
               className="flex items-center gap-1"
-              title={`7-day weekly limit${usage.week.resetsAt ? `\nResets in ${formatResetTime(usage.week.resetsAt)}` : ''}${!isLive ? '\nEstimated from stats-cache' : ''}`}
+              title={`7-day rolling weekly limit${!isLive ? ' (estimated)' : ''}`}
             >
               Weekly:
               <span className={usageColor(usage.week.percent)}>{isLive ? '' : '~'}{usage.week.percent}%</span>
+              {usage.week.resetsAt && (
+                <span className="text-slate-600 ml-0.5">({formatResetTime(usage.week.resetsAt)})</span>
+              )}
             </span>
-            {usage.session.resetsAt && (
-              <>
-                <span className="text-slate-600">|</span>
-                <span className="flex items-center gap-1" title="Session reset countdown">
-                  <Clock size={11} />
-                  {formatResetTime(usage.session.resetsAt)}
-                </span>
-              </>
-            )}
           </>
         )}
       </div>

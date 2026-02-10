@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api';
 import {
   Terminal, Plus, X, Send, Play, Square, FolderGit,
-  ChevronDown, ChevronRight, Shield, ShieldOff
+  ChevronDown, ChevronRight, Shield, ShieldOff,
 } from 'lucide-react';
+import RefreshButton from '../components/RefreshButton';
 
 interface TerminalSession {
   id: string;
@@ -22,10 +23,9 @@ export default function Terminals() {
   const [selectedTerminal, setSelectedTerminal] = useState<string | null>(null);
   const [showLauncher, setShowLauncher] = useState(false);
 
-  const { data: terminals, isLoading } = useQuery<TerminalSession[]>({
+  const { data: terminals, isLoading, refetch, isFetching, dataUpdatedAt } = useQuery<TerminalSession[]>({
     queryKey: ['terminals'],
     queryFn: () => api.listTerminals(),
-    refetchInterval: 10000,
   });
 
   const closeMutation = useMutation({
@@ -48,13 +48,16 @@ export default function Terminals() {
             Launch and manage Claude Code terminal sessions
           </p>
         </div>
-        <button
-          onClick={() => setShowLauncher(true)}
-          className="flex items-center gap-2 px-3 py-2 bg-cyan-500 hover:bg-cyan-600 rounded-lg text-sm font-medium transition-colors"
-        >
-          <Plus size={16} />
-          New Terminal
-        </button>
+        <div className="flex items-center gap-3">
+          <RefreshButton onRefresh={() => refetch()} isFetching={isFetching} dataUpdatedAt={dataUpdatedAt} />
+          <button
+            onClick={() => setShowLauncher(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-cyan-500 hover:bg-cyan-600 rounded-lg text-sm font-medium transition-colors"
+          >
+            <Plus size={16} />
+            New Terminal
+          </button>
+        </div>
       </div>
 
       {showLauncher && (
@@ -185,7 +188,7 @@ function TerminalOutput({ terminal }: TerminalOutputProps) {
   const { data: outputData } = useQuery({
     queryKey: ['terminal-output', terminal.id],
     queryFn: () => api.getTerminalOutput(terminal.id),
-    refetchInterval: terminal.status === 'running' ? 1000 : undefined,
+    refetchInterval: terminal.status === 'running' ? 2000 : undefined,
   });
 
   const sendMutation = useMutation({

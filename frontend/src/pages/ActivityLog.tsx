@@ -51,7 +51,6 @@ export default function ActivityLog() {
         endDate: dateRange.end || undefined,
         limit: 100,
       }),
-    refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   // Fetch activity summary
@@ -62,7 +61,6 @@ export default function ActivityLog() {
         start: dateRange.start || undefined,
         end: dateRange.end || undefined,
       }),
-    refetchInterval: 30000,
   });
 
   // Search logs

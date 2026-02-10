@@ -1,8 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
-import { CheckSquare, RefreshCw, FolderGit, Monitor } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { CheckSquare, FolderGit, Monitor, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '@/api';
 import type { TasksStats } from '@shared/types';
+import RefreshButton from '../components/RefreshButton';
 
 interface ClaudeSession {
   pid: number;
@@ -21,10 +22,11 @@ interface SystemStatus {
 }
 
 export default function Dashboard() {
-  const { data: taskStats } = useQuery({
+  const queryClient = useQueryClient();
+
+  const { data: taskStats, dataUpdatedAt: taskStatsUpdatedAt } = useQuery({
     queryKey: ['tasks-stats'],
     queryFn: () => api.getTasksStats() as Promise<TasksStats>,
-    refetchInterval: 30000,
   });
 
   const { data: modeStatus, refetch: refetchModeStatus, isRefetching } = useQuery({
@@ -32,11 +34,16 @@ export default function Dashboard() {
     queryFn: () => api.getModeStatus(),
   });
 
-  const { data: systemStatus } = useQuery({
+  const { data: systemStatus, dataUpdatedAt: systemUpdatedAt, isFetching: systemFetching } = useQuery({
     queryKey: ['system-status'],
     queryFn: () => api.getSystemStatus() as Promise<SystemStatus>,
-    refetchInterval: 30000,
   });
+
+  const handleRefreshAll = () => {
+    queryClient.invalidateQueries({ queryKey: ['tasks-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['system-status'] });
+    queryClient.invalidateQueries({ queryKey: ['mode-status'] });
+  };
 
   const projectCount = systemStatus?.projects?.length || 0;
   const runningSessions = systemStatus?.sessions?.filter(s => s.status === 'running') || [];
@@ -46,7 +53,10 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-white">Dashboard</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-white">Dashboard</h2>
+        <RefreshButton onRefresh={handleRefreshAll} isFetching={systemFetching} dataUpdatedAt={systemUpdatedAt || taskStatsUpdatedAt} />
+      </div>
 
       {/* Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

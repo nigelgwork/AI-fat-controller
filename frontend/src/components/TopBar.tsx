@@ -30,7 +30,6 @@ export default function TopBar() {
   const { data: pendingQuestions } = useQuery({
     queryKey: ['ntfy-pending-questions'],
     queryFn: () => api.getPendingQuestions(),
-    refetchInterval: 60000,
   });
 
   const questionCount = Array.isArray(pendingQuestions) ? pendingQuestions.length : 0;
