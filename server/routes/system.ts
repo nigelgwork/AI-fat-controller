@@ -86,10 +86,75 @@ router.get('/metrics', asyncHandler(async (_req, res) => {
   });
 }));
 
-// GET /claude-usage - lightweight read from stats-cache.json + credentials
-// No heavy file scanning — just reads two small JSON files.
+// GET /claude-usage - real-time usage from Anthropic OAuth API
+// Uses the undocumented /api/oauth/usage endpoint with the Claude Code OAuth token.
+// Falls back to stats-cache.json if the API call fails.
 let usageCache: { data: any; timestamp: number } | null = null;
 const USAGE_CACHE_TTL = 30_000; // 30 second cache
+
+async function fetchOAuthUsage(): Promise<{
+  fiveHour: { utilization: number; resetsAt: string | null };
+  sevenDay: { utilization: number; resetsAt: string | null };
+  sevenDayOpus: { utilization: number; resetsAt: string | null } | null;
+  sevenDaySonnet: { utilization: number; resetsAt: string | null } | null;
+  extraUsage: { isEnabled: boolean; monthlyLimit: number | null; usedCredits: number | null; utilization: number | null } | null;
+} | null> {
+  const homeDir = os.homedir();
+  const credsPath = path.join(homeDir, '.claude', '.credentials.json');
+
+  let accessToken: string;
+  try {
+    const creds = JSON.parse(fs.readFileSync(credsPath, 'utf-8'));
+    accessToken = creds.claudeAiOauth?.accessToken;
+    if (!accessToken) return null;
+  } catch {
+    return null;
+  }
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/api/oauth/usage', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'anthropic-beta': 'oauth-2025-04-20',
+      },
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!resp.ok) {
+      log.warn(`OAuth usage API returned ${resp.status}`);
+      return null;
+    }
+
+    const data = await resp.json() as any;
+    return {
+      fiveHour: {
+        utilization: data.five_hour?.utilization ?? 0,
+        resetsAt: data.five_hour?.resets_at ?? null,
+      },
+      sevenDay: {
+        utilization: data.seven_day?.utilization ?? 0,
+        resetsAt: data.seven_day?.resets_at ?? null,
+      },
+      sevenDayOpus: data.seven_day_opus ? {
+        utilization: data.seven_day_opus.utilization ?? 0,
+        resetsAt: data.seven_day_opus.resets_at ?? null,
+      } : null,
+      sevenDaySonnet: data.seven_day_sonnet ? {
+        utilization: data.seven_day_sonnet.utilization ?? 0,
+        resetsAt: data.seven_day_sonnet.resets_at ?? null,
+      } : null,
+      extraUsage: data.extra_usage ? {
+        isEnabled: data.extra_usage.is_enabled ?? false,
+        monthlyLimit: data.extra_usage.monthly_limit ?? null,
+        usedCredits: data.extra_usage.used_credits ?? null,
+        utilization: data.extra_usage.utilization ?? null,
+      } : null,
+    };
+  } catch (err) {
+    log.warn('OAuth usage API call failed:', err);
+    return null;
+  }
+}
 
 router.get('/claude-usage', asyncHandler(async (_req, res) => {
   const now = Date.now();
@@ -111,24 +176,40 @@ router.get('/claude-usage', asyncHandler(async (_req, res) => {
     rateLimitTier = oauth.rateLimitTier || 'unknown';
   } catch { /* credentials not found */ }
 
-  // Read stats-cache.json — small file, fast read
+  // Try real-time OAuth API first
+  const oauthUsage = await fetchOAuthUsage();
+
+  if (oauthUsage) {
+    const data = {
+      subscription: subscriptionType,
+      rateLimitTier,
+      source: 'api' as const,
+      session: {
+        percent: oauthUsage.fiveHour.utilization,
+        resetsAt: oauthUsage.fiveHour.resetsAt,
+      },
+      week: {
+        percent: oauthUsage.sevenDay.utilization,
+        resetsAt: oauthUsage.sevenDay.resetsAt,
+      },
+      weekOpus: oauthUsage.sevenDayOpus,
+      weekSonnet: oauthUsage.sevenDaySonnet,
+      extraUsage: oauthUsage.extraUsage,
+    };
+
+    usageCache = { data, timestamp: now };
+    return res.json(data);
+  }
+
+  // Fallback: read stats-cache.json
   let todayTokens = 0;
   let weekTokens = 0;
-  let todayMessages = 0;
-  let totalMessages = 0;
-  let totalSessions = 0;
-  let lastComputedDate = '';
-
   try {
     const statsPath = path.join(claudeDir, 'stats-cache.json');
     const stats = JSON.parse(fs.readFileSync(statsPath, 'utf-8'));
-    lastComputedDate = stats.lastComputedDate || '';
-    totalMessages = stats.totalMessages || 0;
-    totalSessions = stats.totalSessions || 0;
 
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const weekAgo = new Date(now.getTime() - 7 * 86400000);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const weekAgo = new Date(Date.now() - 7 * 86400000);
 
     if (stats.dailyModelTokens) {
       for (const day of stats.dailyModelTokens) {
@@ -144,19 +225,11 @@ router.get('/claude-usage', asyncHandler(async (_req, res) => {
         }
       }
     }
-
-    if (stats.dailyActivity) {
-      for (const day of stats.dailyActivity) {
-        if (day.date === todayStr) {
-          todayMessages = day.messageCount || 0;
-        }
-      }
-    }
   } catch (err) {
     log.warn('Could not read Claude stats-cache.json:', err);
   }
 
-  // Plan limits (approximate, calibrated against claude.ai/settings/usage)
+  // Approximate limits for fallback
   const tierLimits: Record<string, { session: number; weekly: number }> = {
     'default_claude_max_5x':   { session: 480_000,  weekly: 7_000_000 },
     'default_claude_max_20x':  { session: 1_920_000, weekly: 28_000_000 },
@@ -165,25 +238,21 @@ router.get('/claude-usage', asyncHandler(async (_req, res) => {
   };
   const limits = tierLimits[rateLimitTier] || { session: 96_000, weekly: 1_400_000 };
 
-  const sessionPercent = limits.session > 0 ? Math.min(100, Math.round((todayTokens / limits.session) * 100)) : 0;
-  const weeklyPercent = limits.weekly > 0 ? Math.min(100, Math.round((weekTokens / limits.weekly) * 100)) : 0;
-
   const data = {
     subscription: subscriptionType,
     rateLimitTier,
+    source: 'stats-cache' as const,
     session: {
-      tokens: todayTokens,
-      messages: todayMessages,
-      limit: limits.session,
-      percent: sessionPercent,
+      percent: limits.session > 0 ? Math.min(100, Math.round((todayTokens / limits.session) * 100)) : 0,
+      resetsAt: null,
     },
     week: {
-      tokens: weekTokens,
-      limit: limits.weekly,
-      percent: weeklyPercent,
+      percent: limits.weekly > 0 ? Math.min(100, Math.round((weekTokens / limits.weekly) * 100)) : 0,
+      resetsAt: null,
     },
-    totals: { messages: totalMessages, sessions: totalSessions },
-    lastUpdated: lastComputedDate,
+    weekOpus: null,
+    weekSonnet: null,
+    extraUsage: null,
   };
 
   usageCache = { data, timestamp: now };

@@ -249,10 +249,10 @@ const mockApi = {
   }),
   getClaudeUsage: vi.fn().mockResolvedValue({
     subscription: 'unknown', rateLimitTier: 'unknown',
-    session: { tokens: 0, messages: 0, limit: 400000, percent: 0 },
-    week: { tokens: 0, limit: 5000000, percent: 0 },
-    totals: { messages: 0, sessions: 0 },
-    lastUpdated: '',
+    source: 'api',
+    session: { percent: 0, resetsAt: null },
+    week: { percent: 0, resetsAt: null },
+    weekOpus: null, weekSonnet: null, extraUsage: null,
   }),
 
   // Skills

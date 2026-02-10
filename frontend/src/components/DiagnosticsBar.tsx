@@ -10,10 +10,12 @@ interface SystemMetrics {
 interface ClaudeUsage {
   subscription: string;
   rateLimitTier: string;
-  session: { tokens: number; messages: number; limit: number; percent: number };
-  week: { tokens: number; limit: number; percent: number };
-  totals: { messages: number; sessions: number };
-  lastUpdated: string;
+  source: 'api' | 'stats-cache';
+  session: { percent: number; resetsAt: string | null };
+  week: { percent: number; resetsAt: string | null };
+  weekOpus: { utilization: number; resetsAt: string | null } | null;
+  weekSonnet: { utilization: number; resetsAt: string | null } | null;
+  extraUsage: { isEnabled: boolean; monthlyLimit: number | null; usedCredits: number | null; utilization: number | null } | null;
 }
 
 function formatBytes(bytes: number): string {
@@ -22,18 +24,27 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)}GB`;
 }
 
-function formatTokens(count: number): string {
-  if (count < 1000) return String(count);
-  if (count < 1_000_000) return `${(count / 1000).toFixed(1)}k`;
-  return `${(count / 1_000_000).toFixed(1)}M`;
-}
-
 function formatUptime(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   return `${h}h ${m}m`;
+}
+
+function formatResetTime(iso: string | null): string {
+  if (!iso) return '';
+  const reset = new Date(iso);
+  const now = new Date();
+  const diffMs = reset.getTime() - now.getTime();
+  if (diffMs <= 0) return 'now';
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 60) return `${diffMin}m`;
+  const diffHr = Math.floor(diffMin / 60);
+  const remMin = diffMin % 60;
+  if (diffHr < 24) return `${diffHr}h ${remMin}m`;
+  const diffDays = Math.floor(diffHr / 24);
+  return `${diffDays}d ${diffHr % 24}h`;
 }
 
 function usageColor(percent: number): string {
@@ -61,6 +72,8 @@ export default function DiagnosticsBar() {
     queryFn: () => api.getClaudeUsage(),
     refetchInterval: 60000,
   });
+
+  const isLive = usage?.source === 'api';
 
   return (
     <footer className="h-7 bg-slate-800 border-t border-slate-700 flex items-center justify-between px-4 text-[11px] text-slate-500 flex-shrink-0 font-mono">
@@ -99,20 +112,29 @@ export default function DiagnosticsBar() {
             )}
             <span
               className="flex items-center gap-1"
-              title={`Daily: ${formatTokens(usage.session.tokens)} / ${formatTokens(usage.session.limit)} tokens\n${usage.session.messages} messages\nFrom stats-cache (updated at session end)`}
+              title={`5-hour session limit${usage.session.resetsAt ? `\nResets in ${formatResetTime(usage.session.resetsAt)}` : ''}${!isLive ? '\nEstimated from stats-cache' : ''}`}
             >
               <Zap size={11} />
-              Daily:
-              <span className={usageColor(usage.session.percent)}>~{usage.session.percent}%</span>
+              Session:
+              <span className={usageColor(usage.session.percent)}>{isLive ? '' : '~'}{usage.session.percent}%</span>
             </span>
             <span className="text-slate-600">|</span>
             <span
               className="flex items-center gap-1"
-              title={`Weekly: ${formatTokens(usage.week.tokens)} / ${formatTokens(usage.week.limit)} tokens`}
+              title={`7-day weekly limit${usage.week.resetsAt ? `\nResets in ${formatResetTime(usage.week.resetsAt)}` : ''}${!isLive ? '\nEstimated from stats-cache' : ''}`}
             >
               Weekly:
-              <span className={usageColor(usage.week.percent)}>~{usage.week.percent}%</span>
+              <span className={usageColor(usage.week.percent)}>{isLive ? '' : '~'}{usage.week.percent}%</span>
             </span>
+            {usage.session.resetsAt && (
+              <>
+                <span className="text-slate-600">|</span>
+                <span className="flex items-center gap-1" title="Session reset countdown">
+                  <Clock size={11} />
+                  {formatResetTime(usage.session.resetsAt)}
+                </span>
+              </>
+            )}
           </>
         )}
       </div>
