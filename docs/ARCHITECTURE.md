@@ -2,7 +2,7 @@
 
 ## System Overview
 
-AI Phat Controller is a local developer tool with a React frontend and Express backend. The primary run mode is plain Node.js; Docker is supported as an alternative.
+AI Phat Controller is a local developer tool with a React frontend and Express backend.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -40,8 +40,6 @@ AI Phat Controller is a local developer tool with a React frontend and Express b
 │                                        │  │ External Processes       │  │    │
 │                                        │  │                          │  │    │
 │                                        │  │ claude (Code CLI)        │  │    │
-│                                        │  │ gt (Gas Town CLI)        │  │    │
-│                                        │  │ bd (Beads CLI)           │  │    │
 │                                        │  └──────────────────────────┘  │    │
 │                                        │                                │    │
 │                                        │  Port: 3001                   │    │
@@ -151,45 +149,21 @@ AI Phat Controller is a local developer tool with a React frontend and Express b
 └────────────────────────────────────────────┘
 ```
 
-### Docker (alternative)
-
-```
-┌────────────────────────────────────────────┐
-│         Docker Container                    │
-│                                             │
-│  ┌──────────────────────────────────────┐   │
-│  │ node:20-slim                         │   │
-│  │                                      │   │
-│  │ Express :3001                        │   │
-│  │ ├── Built frontend (dist/)           │   │
-│  │ ├── API routes                       │   │
-│  │ └── SQLite (mounted volume)          │   │
-│  └──────────────────────────────────────┘   │
-│                                             │
-│  Volumes:                                   │
-│  - ./data:/app/data         (database)      │
-│  - ~/.claude:/root/.claude  (claude config) │
-│  - claude binary mounted    (CLI access)    │
-└────────────────────────────────────────────┘
-```
-
 ## Frontend Pages
 
 | Page | Route | Purpose |
 |------|-------|---------|
 | Dashboard | `/` | Overview stats, quick navigation |
-| Controller | `/controller` | AI Controller chat interface |
-| Tasks | `/tasks` | Task management with status workflows |
-| Sessions | `/sessions` | Claude Code session tracking |
 | Projects | `/projects` | Project management |
-| Agents | `/agents` | Gas Town agent monitoring |
-| Beads | `/beads` | Work items from Gas Town |
-| Convoys | `/convoys` | Grouped work packages |
-| Clawdbot | `/clawdbot` | AI assistant with personality |
+| New Project | `/projects/new` | Create new project |
+| Tasks | `/projects/tasks` | Task management with status workflows |
+| Sessions | `/projects/sessions` | Active Claude Code sessions (WSL/Win grouped) |
+| History | `/projects/history` | Claude Code session history |
+| Agents | `/resources/agents` | Agent definitions (WSL/Win grouped) |
+| MCP | `/resources/mcp` | MCP server configuration |
+| Skills | `/resources/skills` | Skills/commands management |
+| Terminals | `/terminals` | Terminal session management |
 | Settings | `/settings` | App configuration, debug info |
-| Activity Log | `/activity` | Activity history |
-| Terminal | `/terminal` | WebSocket terminal |
-| Setup | `/setup` | First-run configuration |
 
 ## API Routes
 
@@ -200,24 +174,20 @@ All routes are under `/api/` and defined in `server/routes/`.
 | `/api/tasks` | CRUD | Task management |
 | `/api/projects` | CRUD | Project management |
 | `/api/claude` | POST | Execute Claude Code commands |
-| `/api/claude-sessions` | GET/POST | Claude session tracking |
+| `/api/claude-sessions` | GET | Claude session history |
 | `/api/sessions` | CRUD | Execution session management |
 | `/api/conversations` | CRUD | Conversation history |
 | `/api/settings` | GET/PUT | App settings |
 | `/api/mode` | GET | Execution mode detection |
-| `/api/controller` | POST | AI Controller operations |
-| `/api/clawdbot` | CRUD | Clawdbot agent config |
 | `/api/token-history` | GET | Token usage analytics |
 | `/api/activity` | GET | Activity log |
 | `/api/mcp` | CRUD | MCP server configuration |
 | `/api/ntfy` | POST | Push notifications |
-| `/api/briefs` | CRUD | Project briefs |
-| `/api/screenshots` | POST | Screenshot capture |
-| `/api/images` | GET | Image serving |
-| `/api/gui-tests` | POST | GUI test execution |
-| `/api/agents` | GET | Gas Town agent status |
-| `/api/beads` | GET | Gas Town beads |
-| `/api/system` | GET | Health check, version, debug |
+| `/api/agents` | CRUD | Agent definitions |
+| `/api/skills` | CRUD | Skills management |
+| `/api/terminals` | CRUD | Terminal session management |
+| `/api/filesystem` | GET | Directory browsing |
+| `/api/system` | GET | Health check, version, debug, metrics |
 
 ## Build Pipeline
 
@@ -239,12 +209,8 @@ pnpm run build
 
 ## Key Design Decisions
 
-1. **Plain Node.js over Docker as primary**: Avoids volume mount complexity for Claude CLI, faster rebuild cycles, simpler developer experience.
+1. **SQLite over file-based storage**: Atomic operations, proper migrations, repository pattern for data access. Single file at `./data/controller.db`.
 
-2. **SQLite over file-based storage**: Atomic operations, proper migrations, repository pattern for data access. Single file at `./data/controller.db`.
+2. **Express over Next.js**: Decoupled frontend/backend allows independent development. Vite for fast frontend HMR, Express for stable API server.
 
-3. **Express over Next.js**: Decoupled frontend/backend allows independent development. Vite for fast frontend HMR, Express for stable API server.
-
-4. **Spawn over API for Claude**: Uses `claude` CLI directly via `child_process.spawn()` rather than the Anthropic HTTP API. This gives access to Claude Code's full toolset (file editing, bash, etc.).
-
-5. **Electron kept as legacy**: The `electron/` directory contains the original desktop wrapper. It still works but is not the primary deployment target. Server mode is preferred.
+3. **Spawn over API for Claude**: Uses `claude` CLI directly via `child_process.spawn()` rather than the Anthropic HTTP API. This gives access to Claude Code's full toolset (file editing, bash, etc.).

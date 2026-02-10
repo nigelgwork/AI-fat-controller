@@ -695,7 +695,6 @@ function AboutCard() {
 }
 
 interface DebugInfo {
-  isDocker: boolean;
   nodeVersion: string;
   platform: string;
   claudePath: string;
@@ -739,8 +738,8 @@ function DebugCard() {
               <p className="text-white">{debugInfo.nodeVersion}</p>
             </div>
             <div className="p-3 bg-slate-900 rounded-lg">
-              <p className="text-xs text-slate-400 uppercase mb-1">Docker</p>
-              <p className="text-white">{debugInfo.isDocker ? 'Yes' : 'No'}</p>
+              <p className="text-xs text-slate-400 uppercase mb-1">Mode</p>
+              <p className="text-white">{debugInfo.executionMode}</p>
             </div>
           </div>
 

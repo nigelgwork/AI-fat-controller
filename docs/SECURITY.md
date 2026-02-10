@@ -6,7 +6,7 @@ AI Phat Controller is a local developer tool that orchestrates AI agents (Claude
 
 ## Deployment Model
 
-The application runs locally on the developer's machine (or in a Docker container on the same host). It is **not designed for public internet exposure**. The Express server binds to `0.0.0.0:3001` for Docker compatibility but should only be accessed from localhost.
+The application runs locally on the developer's machine. It is **not designed for public internet exposure**. The Express server binds to `0.0.0.0:3001` but should only be accessed from localhost.
 
 ## Command Execution Model
 
@@ -17,8 +17,6 @@ The application restricts command execution to approved commands:
 | Command | Purpose | Notes |
 |---------|---------|-------|
 | `claude` | Claude Code CLI | Main AI execution engine |
-| `gt` | Gas Town CLI | Multi-agent orchestrator (optional) |
-| `bd` | Beads CLI | Git-backed issue tracker (optional) |
 
 ### Why `--dangerously-skip-permissions` is Used
 
@@ -102,16 +100,7 @@ Arguments passed to subprocess commands:
 
 ### Log Location
 
-Logs are written to stdout/stderr (visible in terminal or Docker logs).
-
-## Docker Security
-
-When running in Docker:
-
-- Container runs as root (required for Claude CLI access)
-- Volumes mounted for data persistence and Claude config
-- No ports exposed beyond 3001
-- Health check endpoint at `/api/system/status`
+Logs are written to stdout/stderr (visible in terminal).
 
 ## Recommendations for Users
 

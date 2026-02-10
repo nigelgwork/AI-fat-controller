@@ -147,7 +147,6 @@ export interface UpdateStatusType {
 }
 
 export interface DebugInfo {
-  isDocker: boolean;
   nodeVersion: string;
   platform: string;
   claudePath: string;

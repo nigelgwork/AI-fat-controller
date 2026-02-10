@@ -309,7 +309,7 @@ async function getSessionsFromHistory(activeThresholdMs: number = 2 * 60 * 1000)
 
 /**
  * Auto-discover git repos in common locations
- * Adapted for Docker/Linux environment (removed WSL-specific logic)
+ * Auto-discover git repos in common locations
  */
 export async function discoverGitRepos(): Promise<Project[]> {
   // Return cached results if fresh
@@ -333,7 +333,7 @@ export async function discoverGitRepos(): Promise<Project[]> {
     path.join(homeDir, 'Documents', 'GitHub'),
     path.join(homeDir, 'Documents', 'git'),
     path.join(homeDir, 'Documents', 'projects'),
-    // Docker-specific common mount points
+    // Common mount points
     '/git',
     '/workspace',
     '/app',
@@ -371,7 +371,7 @@ export async function discoverGitRepos(): Promise<Project[]> {
 
 /**
  * Detect running Claude Code sessions.
- * Adapted for Linux/Docker environment (removed Windows/WSL-specific process detection).
+ * Detect running Claude Code sessions.
  */
 export async function detectClaudeSessions(): Promise<ClaudeSession[]> {
   const sessions: ClaudeSession[] = [];

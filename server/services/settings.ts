@@ -14,7 +14,6 @@ export interface AppSettings {
   wsl: {
     distro?: string;
   };
-  gastownPath: string;
   logFilePath: string;
   theme: 'dark' | 'light' | 'system';
   startMinimized: boolean;
@@ -40,7 +39,6 @@ const defaults: AppSettings = {
   defaultMode: 'auto',
   windows: {},
   wsl: {},
-  gastownPath: '',
   logFilePath: '',
   theme: 'dark',
   startMinimized: false,

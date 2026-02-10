@@ -79,7 +79,7 @@ export async function sendNotification(
   const config = getNtfyConfig();
 
   if (!config.enabled) {
-    // In server/Docker mode, log instead of desktop notification
+    // In server mode, log instead of desktop notification
     if (config.enableDesktopNotifications) {
       console.log(`[Notification] ${title}: ${message}`);
     }

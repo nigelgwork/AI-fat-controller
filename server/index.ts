@@ -41,7 +41,7 @@ async function main() {
 
   // Auto-configure on first run — detect environment and set defaults
   if (!getSetting('hasCompletedSetup')) {
-    // Detect environment (WSL, Docker, native Linux)
+    // Detect environment (WSL, native Linux)
     const modeStatus = await detectModes();
     const executionMode = modeStatus.wsl.detected ? 'wsl' : 'linux';
 
@@ -91,7 +91,6 @@ async function main() {
   app.use('/api/filesystem', filesystemRoutes);
 
   // Serve frontend in production
-  // In Docker: __dirname is /app/dist-server/server, frontend is at /app/dist
   const distPath = path.join(__dirname, '../../dist');
   app.use(express.static(distPath));
   app.get('*', (req, res, next) => {

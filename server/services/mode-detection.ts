@@ -43,7 +43,6 @@ export async function detectModes(): Promise<ModeStatus> {
   if (cachedModeStatus) return cachedModeStatus;
 
   const wslInfo = detectWSL();
-  const isDocker = fs.existsSync('/.dockerenv');
 
   const status: ModeStatus = {
     current: wslInfo.detected ? 'wsl' : 'linux',
@@ -84,8 +83,6 @@ export async function detectModes(): Promise<ModeStatus> {
 
   if (wslInfo.detected) {
     log.info(`Running in ${wslInfo.version || 'WSL'}`);
-  } else if (isDocker) {
-    log.info('Running in Docker');
   } else {
     log.info('Running in native Linux');
   }
@@ -95,7 +92,6 @@ export async function detectModes(): Promise<ModeStatus> {
 }
 
 export async function getDebugInfo() {
-  const gastownPath = process.env.GASTOWN_PATH || '';
   let claudePath = 'Not found';
 
   try {
@@ -103,18 +99,14 @@ export async function getDebugInfo() {
     claudePath = stdout.trim() || 'Not found';
   } catch { /* ignore */ }
 
-  const isDocker = fs.existsSync('/.dockerenv');
   const wslInfo = detectWSL();
 
   return {
-    isDocker,
     isWSL: wslInfo.detected,
     wslVersion: wslInfo.version,
     nodeVersion: process.version,
     platform: process.platform,
     claudePath,
-    gastownPath,
-    gastownExists: gastownPath ? fs.existsSync(gastownPath) : false,
     executionMode: wslInfo.detected ? 'wsl' as const : 'linux' as const,
   };
 }

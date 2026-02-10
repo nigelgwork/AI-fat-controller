@@ -21,9 +21,7 @@
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "dev:server": "tsx watch server/index.ts",
-    "docker:build": "docker build -t ai-controller .",
-    "docker:run": "docker-compose up"
+    "dev:server": "tsx watch server/index.ts"
   },
   "dependencies": {
     "better-sqlite3": "^11.7.0",

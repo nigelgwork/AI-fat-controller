@@ -26,7 +26,6 @@ const execAsync = promisify(exec);
 
 /**
  * LinuxExecutor - Claude Code installed natively in Linux/WSL
- * Default executor for Docker environments
  */
 class LinuxExecutor implements IExecutor {
   private claudePath: string = '';

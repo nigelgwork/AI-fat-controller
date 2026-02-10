@@ -15,7 +15,7 @@ dist-electron/
 release/
 *.unpacked/
 
-# Docker runtime data
+# Runtime data
 data/
 
 # Go build temp

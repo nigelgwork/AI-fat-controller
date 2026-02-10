@@ -1,43 +1,30 @@
 # AI Phat Controller
 
-A local dashboard and orchestration server for managing Claude Code agents, built on the [Gas Town](https://github.com/steveyegge/gastown) multi-agent framework.
+A local dashboard for managing Claude Code sessions, tasks, agents, and terminal sessions.
 
 ## What It Does
 
-- **Dashboard**: Monitor agents, tasks, sessions, and token usage from a web UI
-- **Controller**: Natural language interface to coordinate Claude Code across projects
-- **Session Management**: Track, resume, and manage Claude Code sessions
-- **Task Tracking**: Create and manage tasks with status workflows
-- **Clawdbot**: Configurable AI assistant with personality profiles
-- **MCP Support**: Configure Model Context Protocol servers for your agents
+- **Dashboard**: Monitor sessions, tasks, and system metrics from a web UI
+- **Terminal Management**: Launch and manage Claude Code terminal sessions
+- **Session Tracking**: View active and recent Claude Code sessions (WSL/Windows grouped)
+- **Task Management**: Create and manage tasks with status workflows
+- **Agent & Skill Management**: Browse and configure agents and skills
+- **MCP Support**: Configure Model Context Protocol servers
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    AI Phat Controller                            │
-│                                                                  │
-│  ┌──────────────────────┐     ┌──────────────────────────────┐  │
-│  │   Frontend (Vite)    │     │   Backend (Express)          │  │
-│  │                      │     │                              │  │
-│  │  React 19 + TS       │────▶│  REST API (:3001)            │  │
-│  │  Tailwind CSS        │     │  WebSocket (live updates)    │  │
-│  │  TanStack Query      │     │  SQLite (better-sqlite3)     │  │
-│  │  React Flow (graphs) │     │                              │  │
-│  │  Zustand (state)     │     │  ┌────────────────────────┐  │  │
-│  │                      │     │  │  Claude Code CLI       │  │  │
-│  │  :5173 (dev)         │     │  │  (spawned as needed)   │  │  │
-│  └──────────────────────┘     │  └────────────────────────┘  │  │
-│                                │                              │  │
-│                                │  ┌────────────────────────┐  │  │
-│                                │  │  Gas Town (gt/bd CLIs) │  │  │
-│                                │  │  (optional)            │  │  │
-│                                │  └────────────────────────┘  │  │
-│                                └──────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+Frontend (Vite + React)          Backend (Express.js)
+:5173 (dev) / :3001 (prod)      :3001
+
+  React 19 + TypeScript            REST API (18 routes)
+  TanStack Query                   WebSocket (live updates)
+  Tailwind CSS 3                   SQLite (better-sqlite3)
+  Zustand (state)                  Claude Code CLI (spawned)
+                                   Terminal Manager
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed diagrams.
+In development, Vite runs on :5173 with HMR and proxies API calls to Express on :3001. In production, Express serves the built frontend from `dist/`.
 
 ## Quick Start
 
@@ -63,38 +50,25 @@ pnpm start
 # Dashboard: http://localhost:3001
 ```
 
-### Docker (alternative)
-
-```bash
-docker compose up --build controller
-# Dashboard: http://localhost:3001
-```
-
-Note: Docker mode requires mounting the Claude Code CLI and its config into the container. See `docker-compose.yml` for volume mount examples.
-
 ## Project Structure
 
 ```
 ai-controller/
 ├── frontend/               # Vite + React app
 │   └── src/
-│       ├── pages/          # 16 page components
+│       ├── pages/          # Page components
 │       ├── components/     # Shared UI components
 │       ├── api/            # API client (server-api.ts)
-│       ├── hooks/          # Custom React hooks
-│       └── types/          # TypeScript definitions
+│       └── hooks/          # Custom React hooks
 ├── server/                 # Express.js backend
-│   ├── routes/             # 21 API route modules
+│   ├── routes/             # API route modules
 │   ├── db/                 # SQLite database + migrations
 │   │   └── repositories/   # Data access layer
 │   ├── services/           # Business logic
 │   ├── middleware/          # Validation, error handling
 │   └── websocket.ts        # WebSocket server
 ├── shared/                 # Types shared between frontend/server
-├── electron/               # Electron desktop wrapper (legacy)
-├── bin/cli.js              # CLI entry point (npx support)
-├── Dockerfile              # Docker image
-└── docker-compose.yml      # Docker Compose config
+└── bin/cli.js              # CLI entry point
 ```
 
 ## Tech Stack
@@ -103,7 +77,6 @@ ai-controller/
 |-------|------------|
 | Frontend | React 19, TypeScript 5, Vite 6, Tailwind CSS 3 |
 | State | TanStack Query, Zustand |
-| Visualization | @xyflow/react (React Flow) |
 | Backend | Express 4, Node.js 20 |
 | Database | SQLite (better-sqlite3) |
 | Validation | Zod 4 |
@@ -125,30 +98,11 @@ pnpm typecheck        # Type check
 
 The server auto-configures on first run. Settings are stored in SQLite at `./data/controller.db`.
 
-Key environment variables:
-
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `3001` | Server port |
 | `DATA_DIR` | `./data` | Database directory |
-| `GASTOWN_PATH` | `~/gt` | Gas Town workspace path |
-
-## Gas Town Integration
-
-This project builds on the [Gas Town](https://github.com/steveyegge/gastown) ecosystem for multi-agent orchestration. Gas Town concepts:
-
-- **Rigs**: Git projects under management
-- **Beads**: Atomic work items (issues) stored in JSONL
-- **Convoys**: Grouped work packages for tracking
-- **Agents**: Mayor (coordinator), Witness (monitor), Polecat (worker)
-
-See [docs/gastown-reference.md](docs/gastown-reference.md) for the full Gas Town guide.
 
 ## License
 
 MIT
-
-## Credits
-
-- [Steve Yegge](https://github.com/steveyegge) - Gas Town & Beads
-- [Anthropic](https://anthropic.com) - Claude Code

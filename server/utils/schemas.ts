@@ -116,7 +116,6 @@ export const AppSettingsSchema = z.object({
   minimizeToTray: z.boolean().default(false),
   startMinimized: z.boolean().default(false),
   hasCompletedSetup: z.boolean().default(false),
-  gastownPath: z.string().optional(),
   wsl: WslConfigSchema.optional(),
   windows: WindowsConfigSchema.optional(),
   lastUpdateCheck: z.string().optional(),

@@ -64,7 +64,7 @@
 |---------|-------------|
 | v0.7.0 | Stability release (process management, memory fixes) |
 | v0.8.0 | Feature complete (token limits, approvals, streaming) |
-| v1.4.0 | Migrated to plain Node.js server, Docker support |
+| v1.4.0 | Migrated to plain Node.js server |
 | v1.5.0 | Restructured: new layout, terminal management, removed dead code |
 
 ---

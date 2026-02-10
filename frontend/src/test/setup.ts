@@ -220,7 +220,6 @@ const mockApi = {
 
   // System
   getDebugInfo: vi.fn().mockResolvedValue({
-    isDocker: false,
     nodeVersion: 'v20.0.0',
     platform: 'linux',
     claudePath: '/test/claude',

@@ -174,7 +174,7 @@ ai-controller/
 │   ├── services/               # Business logic
 │   │   ├── executor/           # Claude Code execution
 │   │   ├── terminal-manager.ts # Terminal session spawning
-│   │   ├── mode-detection.ts   # Linux/Docker/WSL detection
+│   │   ├── mode-detection.ts   # Linux/WSL detection
 │   │   ├── settings.ts         # Settings service
 │   │   └── ...
 │   ├── middleware/              # Express middleware
@@ -185,8 +185,6 @@ ai-controller/
 │   └── types/index.ts
 │
 ├── bin/cli.js                  # CLI entry point (npx)
-├── Dockerfile                  # Docker build
-├── docker-compose.yml          # Docker Compose
 ├── vite.config.ts              # Vite config
 ├── tsconfig.json               # Frontend TypeScript config
 ├── tsconfig.server.json        # Server TypeScript config
@@ -204,7 +202,7 @@ ai-controller/
 |------|---------|
 | `server/index.ts` | Express server entry, middleware, route registration |
 | `server/db/database.ts` | SQLite init, migrations runner |
-| `server/services/mode-detection.ts` | Detect Claude CLI, Docker, WSL |
+| `server/services/mode-detection.ts` | Detect Claude CLI, Linux/WSL |
 | `server/services/terminal-manager.ts` | Spawn and manage terminal sessions |
 | `server/services/settings.ts` | Settings service (SQLite-backed) |
 | `frontend/src/api/server-api.ts` | Frontend API client |
