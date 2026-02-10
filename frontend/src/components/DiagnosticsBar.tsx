@@ -65,12 +65,16 @@ export default function DiagnosticsBar() {
     queryKey: ['system-metrics'],
     queryFn: () => api.getSystemMetrics(),
     refetchInterval: 30000,
+    refetchOnMount: true,
+    staleTime: 15000,
   });
 
   const { data: usage } = useQuery<ClaudeUsage>({
     queryKey: ['claude-usage'],
     queryFn: () => api.getClaudeUsage(),
     refetchInterval: 60000,
+    refetchOnMount: true,
+    staleTime: 30000,
   });
 
   const isLive = usage?.source === 'api';

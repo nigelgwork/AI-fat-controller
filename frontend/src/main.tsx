@@ -11,8 +11,11 @@ initApi();
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5000,
+      staleTime: 5 * 60 * 1000, // 5 minutes — data stays fresh, use refresh button to update
+      gcTime: 10 * 60 * 1000,   // 10 minutes — keep unused data in cache
       refetchOnWindowFocus: false,
+      refetchOnMount: false,     // Don't refetch when navigating between pages
+      retry: 1,                  // Only retry once on failure
     },
   },
 });
