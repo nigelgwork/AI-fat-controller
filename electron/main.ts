@@ -12,12 +12,14 @@ let mainWindow: BrowserWindow | null = null;
 let serverInstance: { server: import('http').Server; port: number } | null = null;
 
 async function startEmbeddedServer(): Promise<number> {
-  // Import the compiled server
-  const { startServer } = require('../dist-server/server/index');
+  // In packaged mode, dist/ and dist-server/ are asar-unpacked
+  // so Express can serve static files and load native modules (better-sqlite3)
+  const appRoot = app.isPackaged
+    ? path.join(process.resourcesPath, 'app.asar.unpacked')
+    : path.join(__dirname, '..');
 
-  const staticDir = app.isPackaged
-    ? path.join(process.resourcesPath, 'dist')
-    : path.join(__dirname, '..', 'dist');
+  const { startServer } = require(path.join(appRoot, 'dist-server', 'server', 'index'));
+  const staticDir = path.join(appRoot, 'dist');
 
   const result = await startServer({
     port: 0, // OS-assigned dynamic port
