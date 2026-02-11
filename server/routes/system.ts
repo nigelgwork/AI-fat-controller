@@ -17,11 +17,17 @@ router.get('/status', asyncHandler(async (req, res) => {
   res.json(status);
 }));
 
-// GET /version - getVersion from package.json
+// GET /version - getVersion from package.json or APP_VERSION env
 router.get('/version', asyncHandler(async (req, res) => {
-  const path = require('path');
-  const packagePath = path.join(process.cwd(), 'package.json');
-  const { version } = require(packagePath);
+  let version = process.env.APP_VERSION;
+  if (!version) {
+    try {
+      const packagePath = path.join(process.cwd(), 'package.json');
+      version = require(packagePath).version;
+    } catch {
+      version = 'unknown';
+    }
+  }
   res.json({ version });
 }));
 

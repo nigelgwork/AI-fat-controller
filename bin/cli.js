@@ -1,2 +1,9 @@
 #!/usr/bin/env node
-require('../dist-server/server/index.js');
+const { startServer, setupGracefulShutdown } = require('../dist-server/server/index.js');
+
+startServer().then(({ server }) => {
+  setupGracefulShutdown(server);
+}).catch((err) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
+});

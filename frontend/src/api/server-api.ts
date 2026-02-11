@@ -26,8 +26,8 @@ export const serverApi = {
   getVersion: () => apiGet('/system/version'),
   checkForUpdates: () => Promise.resolve(),
   installUpdate: () => Promise.resolve(),
-  quit: () => Promise.resolve(),
-  minimize: () => Promise.resolve(),
+  quit: () => (window as any).electronAPI?.quit() ?? Promise.resolve(),
+  minimize: () => (window as any).electronAPI?.minimize() ?? Promise.resolve(),
   getUpdateStatus: () => Promise.resolve({
     checking: false, available: false, downloaded: false, downloading: false,
     progress: 0, version: null, releaseNotes: null, error: null,
@@ -41,7 +41,7 @@ export const serverApi = {
   removeProject: (id: string) => apiDelete(`/projects/${id}`),
   refreshProjects: () => apiPost('/projects/refresh'),
   discoverProjects: () => apiGet('/projects/discover'),
-  browseForProject: () => Promise.resolve(null),
+  browseForProject: () => (window as any).electronAPI?.browseForProject() ?? Promise.resolve(null),
   browseFilesystem: (path?: string) => apiGet('/filesystem/browse', path ? { path } : undefined),
 
   // Git clone

@@ -32,9 +32,12 @@ import skillsRoutes from './routes/skills';
 import filesystemRoutes from './routes/filesystem';
 
 const log = createLogger('Server');
-const PORT = parseInt(process.env.PORT || '3001', 10);
 
-async function main() {
+/**
+ * Create and configure the Express app + HTTP server without listening.
+ * Used by both CLI mode and Electron.
+ */
+export async function createApp(options?: { staticDir?: string }): Promise<{ app: express.Express; server: import('http').Server }> {
   // Initialize database
   log.info('Initializing database...');
   initDatabase();
@@ -91,7 +94,7 @@ async function main() {
   app.use('/api/filesystem', filesystemRoutes);
 
   // Serve frontend in production
-  const distPath = path.join(__dirname, '../../dist');
+  const distPath = options?.staticDir || path.join(__dirname, '../../dist');
   app.use(express.static(distPath));
   app.get('*', (req, res, next) => {
     if (!req.path.startsWith('/api/') && !req.path.startsWith('/ws')) {
@@ -104,12 +107,31 @@ async function main() {
   // Error handler
   app.use(errorHandler);
 
-  // Start server
-  server.listen(PORT, '0.0.0.0', () => {
-    log.info(`Server running on http://0.0.0.0:${PORT}`);
-  });
+  return { app, server };
+}
 
-  // Graceful shutdown
+/**
+ * Start the server listening on the given port/host.
+ * Used by CLI mode and can be used by Electron for embedded server.
+ */
+export async function startServer(options?: { port?: number; host?: string; staticDir?: string }) {
+  const port = options?.port ?? parseInt(process.env.PORT || '3001', 10);
+  const host = options?.host ?? '0.0.0.0';
+
+  const { app, server } = await createApp({ staticDir: options?.staticDir });
+
+  return new Promise<{ app: express.Express; server: ReturnType<typeof createServer>; port: number }>((resolve) => {
+    server.listen(port, host, () => {
+      const addr = server.address();
+      const actualPort = typeof addr === 'object' && addr ? addr.port : port;
+      log.info(`Server running on http://${host}:${actualPort}`);
+      resolve({ app, server, port: actualPort });
+    });
+  });
+}
+
+// Graceful shutdown helper
+export function setupGracefulShutdown(server: ReturnType<typeof createServer>) {
   const shutdown = () => {
     log.info('Shutting down...');
     server.close(() => {
@@ -130,9 +152,16 @@ async function main() {
   process.on('unhandledRejection', (reason) => {
     log.error('Unhandled Rejection', reason);
   });
+
+  return shutdown;
 }
 
-main().catch((err) => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-});
+// Auto-start in CLI mode (when run directly, not imported by Electron)
+if (require.main === module) {
+  startServer().then(({ server }) => {
+    setupGracefulShutdown(server);
+  }).catch((err) => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  });
+}
