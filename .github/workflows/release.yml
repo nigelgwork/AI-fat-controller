@@ -8,6 +8,9 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -40,8 +43,7 @@ jobs:
         with:
           name: windows-release
           path: |
-            release/*.exe
-            release/*.msi
+            dist/*.exe
           if-no-files-found: warn
 
       - name: Create GitHub Release
@@ -52,4 +54,4 @@ jobs:
           name: AI Phat Controller v${{ inputs.version || '1.4.0' }}
           draft: true
           files: |
-            release/*.exe
+            dist/*.exe
