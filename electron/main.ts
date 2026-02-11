@@ -12,10 +12,11 @@ let mainWindow: BrowserWindow | null = null;
 let serverInstance: { server: import('http').Server; port: number } | null = null;
 
 async function startEmbeddedServer(): Promise<number> {
-  // In packaged mode, dist/ and dist-server/ are asar-unpacked
-  // so Express can serve static files and load native modules (better-sqlite3)
+  // Use app.getAppPath() which resolves to the asar in packaged mode.
+  // Electron's Node patches handle reading JS/JSON/SQL files from asar transparently.
+  // Only native modules (better-sqlite3) need asarUnpack — handled in package.json.
   const appRoot = app.isPackaged
-    ? path.join(process.resourcesPath, 'app.asar.unpacked')
+    ? app.getAppPath()
     : path.join(__dirname, '..');
 
   const { startServer } = require(path.join(appRoot, 'dist-server', 'server', 'index'));
@@ -39,11 +40,17 @@ function createWindow(port: number) {
     minHeight: 600,
     backgroundColor: '#0f172a',
     titleBarStyle: 'default',
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  // Show window once content is ready to avoid flash
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show();
   });
 
   // In dev mode, load from Vite dev server; in prod, load from embedded Express
@@ -92,13 +99,21 @@ function registerIpcHandlers() {
 app.whenReady().then(async () => {
   registerIpcHandlers();
 
-  const port = await startEmbeddedServer();
-  createWindow(port);
+  try {
+    const port = await startEmbeddedServer();
+    createWindow(port);
+  } catch (err) {
+    dialog.showErrorBox(
+      'AI Phat Controller - Startup Error',
+      `Failed to start embedded server:\n\n${err instanceof Error ? err.stack || err.message : String(err)}`
+    );
+    app.quit();
+  }
 
   app.on('activate', () => {
     // macOS: re-create window when dock icon clicked
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow(port);
+    if (BrowserWindow.getAllWindows().length === 0 && serverInstance) {
+      createWindow(serverInstance.port);
     }
   });
 });
